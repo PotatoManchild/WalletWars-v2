@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalletWars Escrow Test</title>
+    
+    <!-- Solana Web3.js -->
+    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            background: #1a1a1a;
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid #333;
+        }
+        
+        h1 {
+            color: #8b5cf6;
+            text-align: center;
+        }
+        
+        .section {
+            margin: 2rem 0;
+            padding: 1rem;
+            background: #2a2a2a;
+            border-radius: 0.5rem;
+        }
+        
+        button {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+        }
+        
+        button:hover {
+            background: #7c3aed;
+        }
+        
+        .output {
+            background: #000;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            min-height: 100px;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+        }
+        
+        .info {
+            background: #1e3a8a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 WalletWars Escrow Test</h1>
+        
+        <div class="info">
+            <strong>Program ID:</strong> AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7<br>
+            <strong>Platform Wallet:</strong> 5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8<br>
+            <strong>Network:</strong> Devnet
+        </div>
+        
+        <div class="section">
+            <h2>Test Your Escrow Program</h2>
+            <button id="testBtn">1. Test Connection</button>
+            <button id="checkBtn">2. Check Program</button>
+            <button id="pdaBtn">3. Generate PDAs</button>
+            <button id="walletBtn">4. Connect Wallet</button>
+            <div class="output" id="output">Click a button to start testing...</div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let connection = null;
+        let programId = null;
+        let wallet = null;
+
+        // Helper function to display output
+        function output(message) {
+            const outputDiv = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            outputDiv.textContent = `[${timestamp}] ${message}\n` + outputDiv.textContent;
+        }
+
+        // Test connection to Solana
+        async function testConnection() {
+            try {
+                output('Testing connection to Solana devnet...');
+                connection = new solanaWeb3.Connection('https://api.devnet.solana.com', 'confirmed');
+                const version = await connection.getVersion();
+                output(`✅ Connected! Version: ${JSON.stringify(version)}`);
+            } catch (error) {
+                output(`❌ Connection failed: ${error.message}`);
+            }
+        }
+
+        // Check if program exists
+        async function checkProgram() {
+            try {
+                if (!connection) {
+                    output('❌ Please test connection first');
+                    return;
+                }
+                
+                output('Checking if your program exists on devnet...');
+                programId = new solanaWeb3.PublicKey('AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7');
+                const info = await connection.getAccountInfo(programId);
+                
+                if (info) {
+                    output(`✅ Program found!`);
+                    output(`   - Executable: ${info.executable}`);
+                    output(`   - Owner: ${info.owner.toString()}`);
+                    output(`   - Size: ${info.data.length} bytes`);
+                } else {
+                    output('❌ Program not found');
+                }
+            } catch (error) {
+                output(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Generate PDAs
+        async function generatePDAs() {
+            try {
+                if (!programId) {
+                    output('❌ Please check program first');
+                    return;
+                }
+                
+                output('Generating PDAs for a test tournament...');
+                const tournamentId = 'test_' + Date.now();
+                
+                // Tournament PDA
+                const [tournamentPDA] = await solanaWeb3.PublicKey.findProgramAddress(
+                    [Buffer.from('tournament'), Buffer.from(tournamentId)],
+                    programId
+                );
+                
+                // Escrow PDA
+                const [escrowPDA] = await solanaWeb3.PublicKey.findProgramAddress(
+                    [Buffer.from('escrow'), Buffer.from(tournamentId)],
+                    programId
+                );
+                
+                output(`✅ PDAs generated for tournament: ${tournamentId}`);
+                output(`   Tournament PDA: ${tournamentPDA.toString()}`);
+                output(`   Escrow PDA: ${escrowPDA.toString()}`);
+                output(`\n📍 View escrow on explorer:`);
+                output(`   https://explorer.solana.com/address/${escrowPDA.toString()}?cluster=devnet`);
+                
+            } catch (error) {
+                output(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Connect wallet
+        async function connectWallet() {
+            try {
+                if (!window.solana) {
+                    output('❌ Phantom wallet not found. Please install it.');
+                    return;
+                }
+                
+                output('Connecting to Phantom wallet...');
+                await window.solana.connect();
+                wallet = window.solana;
+                
+                output(`✅ Wallet connected: ${wallet.publicKey.toString()}`);
+                
+                // Check balance
+                if (connection) {
+                    const balance = await connection.getBalance(wallet.publicKey);
+                    const sol = balance / solanaWeb3.LAMPORTS_PER_SOL;
+                    output(`   Balance: ${sol.toFixed(4)} SOL`);
+                    
+                    if (sol < 0.05) {
+                        output('⚠️  Low balance! Get devnet SOL from faucet.');
+                    }
+                }
+                
+            } catch (error) {
+                output(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Set up button handlers when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            output('Page loaded. Ready to test!');
+            
+            // Check if Solana Web3.js loaded
+            if (typeof solanaWeb3 === 'undefined') {
+                output('❌ ERROR: Solana Web3.js not loaded!');
+                return;
+            } else {
+                output('✅ Solana Web3.js is available');
+            }
+            
+            // Attach click handlers
+            document.getElementById('testBtn').addEventListener('click', testConnection);
+            document.getElementById('checkBtn').addEventListener('click', checkProgram);
+            document.getElementById('pdaBtn').addEventListener('click', generatePDAs);
+            document.getElementById('walletBtn').addEventListener('click', connectWallet);
+        });
+    </script>
+</body>
+</html>

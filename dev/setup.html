@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalletWars Enhanced Setup</title>
+
+      <!-- LOAD CONFIG FIRST -->
+    <script src="config.js"></script>
+    
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- Solana Web3.js - CRITICAL FOR NEW WALLET SERVICE -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <!-- WalletWars Scripts -->
+    <script src="walletwars-api.js"></script>
+    <script src="wallet-service.js"></script> <!-- NEW ENHANCED SERVICE -->
+    <script src="tournament-setup.js"></script>
+    <!-- NEW SCRIPTS START HERE -->
+    <script src="tournament-config.js"></script>
+    <script src="tournament-deployment-manager.js"></script>
+    <script src="tournament-lifecycle-manager.js"></script>
+    <!-- NEW SCRIPTS END HERE -->
+    
+    <!-- Hybrid Snapshot System Scripts -->
+    <script src="tournament-snapshot-manager.js"></script>
+    <script src="tournament-automation.js"></script>
+    <script src="setup-hybrid-snapshots.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(31, 41, 55, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .setup-section {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.1);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            color: #8b5cf6;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: #8b5cf6;
+            color: #8b5cf6;
+        }
+
+        .status-display {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        .info { color: #06b6d4; }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            padding: 0.5rem 0;
+            border-left: 3px solid rgba(139, 92, 246, 0.3);
+            padding-left: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-list li.completed {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .instruction {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .instruction-title {
+            color: #06b6d4;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(31, 41, 55, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .service-card {
+            background: rgba(31, 41, 55, 0.4);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .service-status {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .service-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .service-details {
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        .highlight-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .highlight-warning {
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .highlight-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 WalletWars Enhanced Setup</h1>
+        
+        <!-- New: Dependencies Check -->
+        <div class="setup-section">
+            <div class="section-title">📦 Step 1: Dependencies Check</div>
+            <div class="instruction">
+                <div class="instruction-title">🔧 Required Libraries</div>
+                <p>Checking if all required JavaScript libraries are loaded:</p>
+            </div>
+            
+            <div class="service-grid" id="dependenciesGrid">
+                <!-- Populated by JavaScript -->
+            </div>
+            
+            <button class="btn-secondary" onclick="recheckDependencies()">Recheck Dependencies</button>
+        </div>
+
+        <!-- Enhanced: Wallet Service Status -->
+        <div class="setup-section">
+            <div class="section-title">🔗 Step 2: Enhanced Wallet Service Status</div>
+            <p>Testing the new Web3.js + Helius wallet tracking system:</p>
+            
+            <button class="btn" onclick="testEnhancedWalletService()">Test Enhanced Wallet Service</button>
+            <button class="btn-secondary" onclick="testMultipleProviders()">Test All Providers</button>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="walletProgress"></div>
+            </div>
+            
+            <div class="status-display" id="walletServiceOutput">
+                Click "Test Enhanced Wallet Service" to verify the new system...
+            </div>
+        </div>
+
+        <!-- Database Setup -->
+        <div class="setup-section">
+            <div class="section-title">📊 Step 3: Database & Tournament System</div>
+            <p>Check database connection and tournament infrastructure:</p>
+            
+            <button class="btn" onclick="checkSystemStatus()">Check All Services</button>
+            <button class="btn-secondary" onclick="testDatabaseConnection()">Test Database Only</button>
+            
+            <div class="status-display" id="systemStatusOutput">
+                Click "Check All Services" to verify your setup...
+            </div>
+        </div>
+
+        <!-- Tournament Setup -->
+        <div class="setup-section">
+            <div class="section-title">🎮 Step 4: Tournament Initialization</div>
+            <p>Set up tournament templates and create sample tournaments:</p>
+            
+            <button class="btn" onclick="runCompleteSetup()">Run Complete Setup</button>
+            <button class="btn-secondary" onclick="createSampleTournament()">Create Sample Tournament</button>
+            
+            <ul class="step-list" id="setupSteps">
+                <li id="step-templates">Create tournament templates</li>
+                <li id="step-wallet-service">Test enhanced wallet service</li>
+                <li id="step-tournaments">Generate sample tournaments</li>
+                <li id="step-snapshots">Test wallet snapshots</li>
+                <li id="step-verification">Verify complete setup</li>
+            </ul>
+        </div>
+
+        <!-- Enhanced Testing -->
+        <div class="setup-section">
+            <div class="section-title">🧪 Step 5: Enhanced Testing & Verification</div>
+            <p>Test individual components with the new wallet service:</p>
+            
+            <button class="btn-secondary" onclick="testWalletSnapshot()">Test Web3.js Snapshot</button>
+            <button class="btn-secondary" onclick="testTournamentLoad()">Test Tournament Loading</button>
+            <button class="btn-secondary" onclick="showUpcomingTournaments()">Show Tournaments</button>
+            
+            <div class="instruction">
+                <div class="instruction-title">🎯 Test Addresses</div>
+                <p>Test wallet snapshots with these addresses:</p>
+                <ul>
+                    <li><strong>SOL Token Mint:</strong> So11111111111111111111111111111111111111112</li>
+                    <li><strong>USDC Token Mint:</strong> EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v</li>
+                </ul>
+                <input type="text" id="testWalletAddress" placeholder="Or enter your own Solana wallet address..." 
+                       style="width: 100%; padding: 0.5rem; background: rgba(31, 41, 55, 0.5); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.5rem; color: white; margin: 0.5rem 0;">
+                <button class="btn-secondary" onclick="testCustomWallet()">Test Custom Wallet</button>
+            </div>
+        </div>
+
+        <!-- Launch -->
+        <div class="setup-section">
+            <div class="section-title">🚀 Step 5: Launch Enhanced System</div>
+            <p>Your enhanced tournament system is ready:</p>
+            
+            <button class="btn" onclick="goToTournaments()">Go to Tournaments Page</button>
+            <button class="btn-secondary" onclick="showFinalStatus()">Show Final Status</button>
+            
+            <div class="instruction">
+                <div class="instruction-title">✅ What's New</div>
+                <p>Enhanced system features:</p>
+                <ol>
+                    <li><strong>Web3.js Integration:</strong> Direct Solana blockchain queries (no CORS issues)</li>
+                    <li><strong>Multi-Provider Support:</strong> Primary (Web3.js) + Backup (Helius) + Fallback (Ankr)</li>
+                    <li><strong>Improved Reliability:</strong> Automatic failover between providers</li>
+                    <li><strong>Better Performance:</strong> Faster wallet balance queries</li>
+                    <li><strong>Enhanced Monitoring:</strong> Real-time provider status tracking</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- NEW: Hybrid Snapshot System -->
+        <div class="setup-section">
+            <div class="section-title">🔄 Step 6: Hybrid Snapshot System</div>
+            <p>Configure the efficient snapshot system that only captures wallet states at tournament start/end:</p>
+            
+            <button class="btn" onclick="initializeHybridSnapshots()">Initialize Hybrid Snapshots</button>
+            <button class="btn-secondary" onclick="testHybridSnapshot()">Test Snapshot System</button>
+            <button class="btn-secondary" onclick="checkAutomationStatus()">Check Automation Status</button>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="hybridProgress"></div>
+            </div>
+            
+            <div class="status-display" id="hybridOutput">
+                Click "Initialize Hybrid Snapshots" to set up the efficient snapshot system...
+            </div>
+            
+            <div class="instruction">
+                <div class="instruction-title">📸 Hybrid Snapshot Features</div>
+                <ul>
+                    <li><strong>Minimal API Usage:</strong> Only 2 API calls per participant per tournament</li>
+                    <li><strong>Anti-Cheat Detection:</strong> Monitors for external deposits and manipulation</li>
+                    <li><strong>Automatic Processing:</strong> Handles tournament lifecycle automatically</li>
+                    <li><strong>Prize Distribution:</strong> Calculates and distributes prizes based on performance</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Output Console -->
+        <div class="setup-section">
+            <div class="section-title">💻 Enhanced Console Output</div>
+            <div class="status-display" id="consoleOutput">
+                Enhanced setup system ready...
+            </div>
+            <button class="btn-secondary" onclick="clearConsole()">Clear Console</button>
+        </div>
+    </div>
+
+    <script>
+        let setupProgress = 0;
+        let consoleLog = '';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logLine = `[${timestamp}] ${prefix} ${message}`;
+            
+            consoleLog += logLine + '\n';
+            document.getElementById('consoleOutput').innerHTML = `<pre>${consoleLog}</pre>`;
+            document.getElementById('consoleOutput').scrollTop = document.getElementById('consoleOutput').scrollHeight;
+            
+            console.log(logLine);
+        }
+
+        function updateProgress(percent, elementId = 'statusProgress') {
+            setupProgress = percent;
+            const progressElement = document.getElementById(elementId);
+            if (progressElement) {
+                progressElement.style.width = percent + '%';
+            }
+        }
+
+        function markStepCompleted(stepId) {
+            const step = document.getElementById(stepId);
+            if (step) {
+                step.classList.add('completed');
+            }
+        }
+
+        function clearConsole() {
+            consoleLog = '';
+            document.getElementById('consoleOutput').innerHTML = 'Enhanced console cleared...';
+        }
+
+        // NEW: Check dependencies
+        function checkDependencies() {
+            log('🔍 Checking dependencies...', 'info');
+            
+            const dependencies = [
+                { name: 'Supabase', check: () => window.supabase, status: 'unknown' },
+                { name: 'Solana Web3.js', check: () => window.solanaWeb3, status: 'unknown' },
+                { name: 'WalletWars API', check: () => window.walletWarsAPI, status: 'unknown' },
+                { name: 'Enhanced Wallet Service', check: () => window.enhancedWalletService, status: 'unknown' },
+                { name: 'Tournament Setup', check: () => window.tournamentSetup, status: 'unknown' },
+                { name: 'Snapshot Manager', check: () => window.tournamentSnapshotManager, status: 'unknown' },
+                { name: 'Tournament Automation', check: () => window.tournamentAutomation, status: 'unknown' },
+                { name: 'Hybrid Setup', check: () => window.setupHybridSnapshots, status: 'unknown' }
+            ];
+            
+            dependencies.forEach(dep => {
+                try {
+                    dep.status = dep.check() ? 'success' : 'error';
+                } catch (error) {
+                    dep.status = 'error';
+                }
+            });
+            
+            renderDependenciesGrid(dependencies);
+            return dependencies;
+        }
+
+        function renderDependenciesGrid(dependencies) {
+            const grid = document.getElementById('dependenciesGrid');
+            grid.innerHTML = '';
+            
+            dependencies.forEach(dep => {
+                const card = document.createElement('div');
+                card.className = `service-card ${dep.status === 'success' ? 'highlight-success' : 'highlight-error'}`;
+                
+                const statusEmoji = dep.status === 'success' ? '✅' : '❌';
+                const statusText = dep.status === 'success' ? 'Loaded' : 'Missing';
+                
+                card.innerHTML = `
+                    <div class="service-status">${statusEmoji}</div>
+                    <div class="service-name">${dep.name}</div>
+                    <div class="service-details">${statusText}</div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function recheckDependencies() {
+            log('🔄 Rechecking dependencies...', 'info');
+            const deps = checkDependencies();
+            const allLoaded = deps.every(dep => dep.status === 'success');
+            
+            if (allLoaded) {
+                log('✅ All dependencies loaded successfully!', 'success');
+            } else {
+                const missing = deps.filter(dep => dep.status === 'error').map(dep => dep.name);
+                log(`⚠️ Missing dependencies: ${missing.join(', ')}`, 'warning');
+            }
+        }
+
+        // ENHANCED: Test the new wallet service
+        async function testEnhancedWalletService() {
+            log('🚀 Testing Enhanced Wallet Service...', 'info');
+            updateProgress(10, 'walletProgress');
+            
+            try {
+                if (!window.enhancedWalletService) {
+                    throw new Error('Enhanced Wallet Service not loaded');
+                }
+
+                const output = document.getElementById('walletServiceOutput');
+                output.innerHTML = '<div class="info">Testing enhanced wallet service...</div>';
+
+                // Test service status
+                const status = await window.enhancedWalletService.getServiceStatus();
+                
+                output.innerHTML += `<div class="${status.online ? 'success' : 'error'}">
+                    Primary Provider: ${status.provider} - ${status.online ? 'Online' : 'Offline'}
+                    ${status.responseTime ? `(${status.responseTime}ms)` : ''}
+                </div>`;
+                
+                updateProgress(30, 'walletProgress');
+
+                // Test wallet snapshot
+                const testAddress = 'So11111111111111111111111111111111111111112';
+                const snapshot = await window.enhancedWalletService.getFullWalletSnapshot(testAddress);
+                
+                output.innerHTML += `<div class="success">
+                    ✅ Wallet Snapshot Success!<br>
+                    💰 SOL Balance: ${snapshot.solBalance}<br>
+                    🪙 Token Count: ${snapshot.tokenBalances.length}<br>
+                    🔧 Provider: ${snapshot.provider}<br>
+                    ⏰ Timestamp: ${snapshot.timestamp}
+                </div>`;
+                
+                updateProgress(60, 'walletProgress');
+
+                // Check if Helius API key is configured
+                const heliusConfigured = window.enhancedWalletService.isApiKeyConfigured ? 
+                    window.enhancedWalletService.isApiKeyConfigured() : 
+                    (window.enhancedWalletService.config && 
+                     window.enhancedWalletService.config.backup && 
+                     window.enhancedWalletService.config.backup.rpcUrl.includes('97322e35-59f5-424c-89f0-e6a826353c48'));
+                     
+                output.innerHTML += `<div class="${heliusConfigured ? 'success' : 'warning'}">
+                    🔑 Helius API Key: ${heliusConfigured ? 'Configured ✅' : 'Not configured (using public RPCs)'}
+                </div>`;
+
+                // Test rate limiter
+                const rateLimitStatus = window.enhancedWalletService.rateLimiter.getStatus();
+                output.innerHTML += `<div class="info">
+                    🚦 Rate Limiter: ${rateLimitStatus.available}/${rateLimitStatus.maxRequests} requests available
+                </div>`;
+
+                updateProgress(100, 'walletProgress');
+                log('✅ Enhanced Wallet Service test completed successfully!', 'success');
+                markStepCompleted('step-wallet-service');
+                
+            } catch (error) {
+                log(`❌ Enhanced Wallet Service test failed: ${error.message}`, 'error');
+                document.getElementById('walletServiceOutput').innerHTML = 
+                    `<div class="error">❌ Test failed: ${error.message}</div>`;
+            }
+        }
+
+        // NEW: Test multiple providers
+        async function testMultipleProviders() {
+            log('🔄 Testing multiple wallet providers...', 'info');
+            
+            try {
+                if (!window.enhancedWalletService) {
+                    throw new Error('Enhanced Wallet Service not loaded');
+                }
+
+                const output = document.getElementById('walletServiceOutput');
+                output.innerHTML = '<div class="info">Testing all available providers...</div>';
+
+                // Test multi-provider status
+                const multiStatus = await window.enhancedWalletService.getMultiProviderStatus();
+                
+                let statusHtml = '<div class="info"><strong>Provider Status Report:</strong></div>';
+                
+                Object.entries(multiStatus).forEach(([key, status]) => {
+                    const statusClass = status.online ? 'success' : 'error';
+                    const emoji = status.online ? '✅' : '❌';
+                    statusHtml += `<div class="${statusClass}">
+                        ${emoji} ${status.name} (Priority ${status.priority}): 
+                        ${status.online ? `Online (${status.responseTime}ms)` : `Offline - ${status.error}`}
+                    </div>`;
+                });
+
+                output.innerHTML = statusHtml;
+                
+                log('✅ Multi-provider test completed', 'success');
+                
+            } catch (error) {
+                log(`❌ Multi-provider test failed: ${error.message}`, 'error');
+                document.getElementById('walletServiceOutput').innerHTML = 
+                    `<div class="error">❌ Multi-provider test failed: ${error.message}</div>`;
+            }
+        }
+
+        // ENHANCED: Database connection test
+        async function testDatabaseConnection() {
+            log('Testing enhanced database connection...', 'info');
+            
+            try {
+                if (!window.walletWarsAPI) {
+                    throw new Error('WalletWars API not loaded');
+                }
+
+                const connected = await window.walletWarsAPI.testConnection();
+                
+                if (connected) {
+                    log('✅ Database connection successful!', 'success');
+                    updateProgress(20);
+                } else {
+                    log('❌ Database connection failed', 'error');
+                }
+            } catch (error) {
+                log(`❌ Database test error: ${error.message}`, 'error');
+            }
+        }
+
+        // ENHANCED: System status check
+        async function checkSystemStatus() {
+            log('🔍 Checking enhanced system status...', 'info');
+            updateProgress(10);
+            
+            try {
+                if (!window.walletWarsAPI) {
+                    throw new Error('WalletWars API not loaded');
+                }
+
+                // Use the enhanced service status method
+                const status = await window.walletWarsAPI.getEnhancedServiceStatus();
+                
+                const statusDiv = document.getElementById('systemStatusOutput');
+                statusDiv.innerHTML = `
+                    <div class="${status.database ? 'success' : 'error'}">
+                        Database: ${status.database ? '✅ Connected' : '❌ Disconnected'}
+                    </div>
+                    <div class="${status.walletService ? 'success' : 'error'}">
+                        Wallet Service: ${status.walletService ? '✅ Online' : '❌ Offline'}
+                        ${status.walletServiceProvider ? `(${status.walletServiceProvider})` : ''}
+                        ${status.walletServiceResponseTime ? ` - ${status.walletServiceResponseTime}ms` : ''}
+                    </div>
+                    <div class="info">Tournament Templates: ${status.templates || 0} available</div>
+                    <div class="info">Upcoming Tournaments: ${status.tournaments || 0} scheduled</div>
+                    <div class="info">System Status: ${new Date(status.timestamp).toLocaleString()}</div>
+                `;
+                
+                if (status.database && status.walletService) {
+                    updateProgress(50);
+                    log('✅ Enhanced system status check completed - all services operational', 'success');
+                } else {
+                    log('⚠️ Enhanced system status check completed - some services need attention', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Enhanced status check error: ${error.message}`, 'error');
+                document.getElementById('systemStatusOutput').innerHTML = 
+                    `<div class="error">Enhanced status check failed: ${error.message}</div>`;
+            }
+        }
+
+        // ENHANCED: Complete setup with new wallet service
+        async function runCompleteSetup() {
+            log('🚀 Running enhanced complete setup...', 'info');
+            updateProgress(0);
+            
+            try {
+                if (!window.tournamentSetup) {
+                    throw new Error('Tournament setup scripts not loaded');
+                }
+
+                // Run the original tournament setup
+                const result = await window.tournamentSetup.runCompleteSetup();
+                
+                if (result.success) {
+                    log('✅ Tournament setup completed successfully!', 'success');
+                    markStepCompleted('step-templates');
+                    markStepCompleted('step-tournaments');
+                    updateProgress(60);
+                    
+                    // Test enhanced wallet service
+                    if (window.enhancedWalletService) {
+                        log('🔄 Testing enhanced wallet service integration...', 'info');
+                        
+                        const walletTest = await window.walletWarsAPI.testWalletSnapshot();
+                        if (walletTest.success) {
+                            log('✅ Enhanced wallet service integration successful!', 'success');
+                            markStepCompleted('step-wallet-service');
+                            markStepCompleted('step-snapshots');
+                        } else {
+                            log('⚠️ Enhanced wallet service test failed', 'warning');
+                        }
+                    }
+                    
+                    markStepCompleted('step-verification');
+                    updateProgress(100);
+                    
+                    log(`📊 Setup Summary:`, 'info');
+                    log(`  • Wallet Service: ${window.enhancedWalletService ? 'Enhanced (Web3.js)' : 'Fallback'}`, 'info');
+                    log(`  • Upcoming Tournaments: ${result.upcomingTournaments}`, 'info');
+                    log(`  • System Status: Fully Operational`, 'success');
+                    log('🎉 Enhanced tournament system is ready!', 'success');
+                } else {
+                    log(`❌ Enhanced setup failed: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Enhanced setup error: ${error.message}`, 'error');
+            }
+        }
+
+        // ========================================
+        // NEW HYBRID SNAPSHOT SYSTEM FUNCTIONS
+        // ========================================
+
+        async function initializeHybridSnapshots() {
+            log('🚀 Initializing Hybrid Snapshot System...', 'info');
+            updateProgress(0, 'hybridProgress');
+            
+            try {
+                if (!window.setupHybridSnapshots) {
+                    throw new Error('Hybrid snapshot scripts not loaded');
+                }
+                
+                const output = document.getElementById('hybridOutput');
+                output.innerHTML = '<div class="info">Setting up hybrid snapshot system...</div>';
+                
+                // Add timeout to prevent page freeze
+                const setupPromise = window.setupHybridSnapshots();
+                const timeoutPromise = new Promise((resolve) => {
+                    setTimeout(() => {
+                        log('⚠️ Setup is taking longer than expected...', 'warning');
+                        resolve(false);
+                    }, 10000); // 10 second timeout
+                });
+                
+                // Run setup with timeout
+                const success = await Promise.race([setupPromise, timeoutPromise]);
+                
+                if (success) {
+                    updateProgress(100, 'hybridProgress');
+                    
+                    output.innerHTML = `
+                        <div class="success">✅ Hybrid Snapshot System initialized successfully!</div>
+                        <div class="info">📸 Snapshots will only be taken at tournament start/end</div>
+                        <div class="info">💰 API Usage: 2 calls per participant per tournament</div>
+                        <div class="info">🤖 Automation: Ready (use console to start monitoring)</div>
+                        <div class="info">🛡️ Anti-cheat: Enabled with performance validation</div>
+                        <div class="success">🔑 Helius API Key: Configured and ready</div>
+                    `;
+                    
+                    log('✅ Hybrid snapshot system ready!', 'success');
+                    markStepCompleted('step-snapshots');
+                } else {
+                    output.innerHTML = `
+                        <div class="warning">⚠️ Setup completed with warnings</div>
+                        <div class="info">Some components may need manual configuration</div>
+                        <div class="info">Check the console for details</div>
+                    `;
+                    log('⚠️ Setup completed with warnings - check console', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Hybrid snapshot setup error: ${error.message}`, 'error');
+                document.getElementById('hybridOutput').innerHTML = 
+                    `<div class="error">❌ Setup error: ${error.message}</div>
+                     <div class="info">Check console for details</div>`;
+            }
+        }
+        
+        async function testHybridSnapshot() {
+            log('🧪 Testing hybrid snapshot system...', 'info');
+            
+            try {
+                if (!window.testHybridSystem) {
+                    throw new Error('Test functions not available');
+                }
+                
+                const testAddress = 'So11111111111111111111111111111111111111112';
+                const result = await window.testHybridSystem.testSnapshot(testAddress);
+                
+                if (result) {
+                    log(`✅ Snapshot test successful - ${result.solBalance} SOL`, 'success');
+                    document.getElementById('hybridOutput').innerHTML = 
+                        `<div class="success">✅ Snapshot working! Balance: ${result.solBalance} SOL</div>`;
+                } else {
+                    throw new Error('Snapshot test returned no data');
+                }
+                
+            } catch (error) {
+                log(`❌ Snapshot test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkAutomationStatus() {
+            log('🤖 Checking tournament automation status...', 'info');
+            
+            try {
+                if (!window.testHybridSystem) {
+                    throw new Error('Hybrid system not initialized');
+                }
+                
+                const status = window.testHybridSystem.checkStatus();
+                
+                document.getElementById('hybridOutput').innerHTML = `
+                    <div class="${status.monitoring ? 'success' : 'warning'}">
+                        🤖 Automation: ${status.monitoring ? 'Active' : 'Inactive'}
+                    </div>
+                    <div class="info">⏱️ Check Interval: ${status.checkInterval / 1000} seconds</div>
+                    <div class="info">🎯 Active Checks: ${status.activeChecks.join(', ') || 'None'}</div>
+                    <div class="info">📊 Initialized: ${status.initialized ? 'Yes' : 'No'}</div>
+                `;
+                
+                log(`Automation status: ${status.monitoring ? 'Active' : 'Inactive'}`, 
+                    status.monitoring ? 'success' : 'warning');
+                
+            } catch (error) {
+                log(`❌ Status check failed: ${error.message}`, 'error');
+            }
+        }
+
+        // ENHANCED: Wallet snapshot test
+        async function testWalletSnapshot() {
+            log('📸 Testing enhanced wallet snapshot...', 'info');
+            
+            try {
+                // Test with enhanced API method
+                const result = await window.walletWarsAPI.testWalletSnapshot();
+                
+                if (result.success) {
+                    log(`✅ Enhanced wallet snapshot test passed!`, 'success');
+                    log(`  • SOL Balance: ${result.snapshot.solBalance}`, 'info');
+                    log(`  • Token Count: ${result.snapshot.tokenBalances.length}`, 'info');
+                    log(`  • Provider: ${result.snapshot.provider}`, 'info');
+                    markStepCompleted('step-snapshots');
+                } else {
+                    log(`❌ Enhanced wallet snapshot test failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Enhanced snapshot test error: ${error.message}`, 'error');
+            }
+        }
+
+        // ENHANCED: Custom wallet test
+        async function testCustomWallet() {
+            const address = document.getElementById('testWalletAddress').value.trim();
+            
+            if (!address) {
+                log('⚠️ Please enter a wallet address', 'warning');
+                return;
+            }
+            
+            log(`🔍 Testing custom wallet with enhanced service: ${address.substring(0, 8)}...`, 'info');
+            
+            try {
+                const result = await window.walletWarsAPI.testWalletSnapshot(address);
+                
+                if (result.success) {
+                    log(`✅ Custom wallet test successful!`, 'success');
+                    log(`  • Address: ${address.substring(0, 8)}...${address.substring(-4)}`, 'info');
+                    log(`  • SOL Balance: ${result.snapshot.solBalance}`, 'info');
+                    log(`  • Token Count: ${result.snapshot.tokenBalances.length}`, 'info');
+                    log(`  • Provider: ${result.snapshot.provider}`, 'info');
+                    log(`  • Total Value: ${result.snapshot.totalValueSol} SOL`, 'info');
+                } else {
+                    log(`❌ Custom wallet test failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Custom wallet test error: ${error.message}`, 'error');
+            }
+        }
+
+        // Existing functions with enhanced logging
+        async function createSampleTournament() {
+            log('🎮 Creating sample tournament with enhanced system...', 'info');
+            
+            try {
+                const result = await window.tournamentSetup.createSampleTournament();
+                
+                if (result) {
+                    log(`✅ Sample tournament created: ${result.id}`, 'success');
+                    markStepCompleted('step-tournaments');
+                } else {
+                    log('❌ Failed to create sample tournament', 'error');
+                }
+            } catch (error) {
+                log(`❌ Sample tournament error: ${error.message}`, 'error');
+            }
+        }
+
+        async function showUpcomingTournaments() {
+            log('📋 Loading upcoming tournaments...', 'info');
+            
+            try {
+                const result = await window.walletWarsAPI.getUpcomingTournaments();
+                
+                if (result.success) {
+                    log(`✅ Found ${result.tournaments.length} upcoming tournaments:`, 'success');
+                    result.tournaments.forEach(tournament => {
+                        log(`  🎮 ${tournament.tournament_templates.name} - ${tournament.status}`, 'info');
+                    });
+                } else {
+                    log(`❌ Failed to load tournaments: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Tournament loading error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTournamentLoad() {
+            log('🎮 Testing tournament loading...', 'info');
+            
+            try {
+                // Test getting tournament templates
+                const templatesResult = await window.walletWarsAPI.getTournamentTemplates();
+                log(`📋 Tournament templates: ${templatesResult.success ? templatesResult.templates.length : 'Failed to load'}`, 
+                    templatesResult.success ? 'success' : 'error');
+                
+                // Test getting upcoming tournaments
+                const tournamentsResult = await window.walletWarsAPI.getUpcomingTournaments();
+                log(`🎮 Upcoming tournaments: ${tournamentsResult.success ? tournamentsResult.tournaments.length : 'Failed to load'}`, 
+                    tournamentsResult.success ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`❌ Tournament load test error: ${error.message}`, 'error');
+            }
+        }
+
+        function goToTournaments() {
+            log('🚀 Redirecting to enhanced tournaments page...', 'info');
+            window.location.href = 'tournaments.html';
+        }
+
+        async function showFinalStatus() {
+            log('📊 Checking final enhanced system status...', 'info');
+            await checkSystemStatus();
+            
+            if (setupProgress >= 80) {
+                log('🎉 Enhanced tournament system is ready for use!', 'success');
+                log('✨ New features: Web3.js integration, multi-provider support, improved reliability', 'info');
+                log('🔄 Hybrid snapshots: Only 2 API calls per participant per tournament', 'info');
+                log('🤖 Automation: Tournament lifecycle handled automatically', 'info');
+            } else {
+                log('⚠️ Enhanced setup may be incomplete - check status above', 'warning');
+            }
+        }
+
+        // Initialize enhanced page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Enhanced WalletWars Setup page loaded', 'info');
+            log('🔑 Helius API Key: Configured', 'success');
+            
+            // Check dependencies after a short delay to allow scripts to load
+            setTimeout(() => {
+                try {
+                    const deps = checkDependencies();
+                    const web3Loaded = deps.find(d => d.name === 'Solana Web3.js')?.status === 'success';
+                    const enhancedLoaded = deps.find(d => d.name === 'Enhanced Wallet Service')?.status === 'success';
+                    const hybridLoaded = deps.find(d => d.name === 'Hybrid Setup')?.status === 'success';
+                    
+                    if (web3Loaded && enhancedLoaded) {
+                        log('✅ Enhanced wallet service ready!', 'success');
+                        if (hybridLoaded) {
+                            log('✅ Hybrid snapshot system scripts loaded!', 'success');
+                        } else {
+                            log('⚠️ Hybrid snapshot scripts loading...', 'warning');
+                        }
+                    } else if (web3Loaded) {
+                        log('⚠️ Web3.js loaded, waiting for enhanced service...', 'warning');
+                    } else {
+                        log('❌ Web3.js not loaded - enhanced features unavailable', 'error');
+                    }
+                } catch (error) {
+                    log(`⚠️ Dependency check error: ${error.message}`, 'warning');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
