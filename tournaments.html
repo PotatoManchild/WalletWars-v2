@@ -6,40 +6,36 @@
     <title>Tournaments - WalletWars</title>
     
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    
-    <!-- Supabase -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
-    <!-- CRITICAL: Solana Web3.js - MUST LOAD FIRST -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    
-    <!-- WalletWars Scripts - ENHANCED ORDER WITH GLOBAL WALLET MANAGER -->
-    <script src="walletwars-api.js"></script>
-    <script src="wallet-service.js"></script> <!-- Enhanced wallet service -->
-    <script src="global-wallet-manager.js"></script> <!-- NEW: Global wallet persistence -->
-    <script src="tournament-setup.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-    <!-- Escrow Integration Scripts -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
-    <script src="https://unpkg.com/@project-serum/anchor@latest/dist/browser/index.js"></script>
-    <script src="walletwars-escrow-integration.js"></script>
-    
-    <!-- Hybrid Snapshot System Scripts -->
-    <script src="tournament-snapshot-manager.js"></script>
-    <script src="tournament-automation.js"></script>
-    
-    <!-- Tournament System Scripts -->
-    <script src="js/tournament-system/tournament-config.js"></script>
-    <script src="js/tournament-system/tournament-test-mode.js"></script>
-    <script src="js/tournament-system/tournament-snapshot-manager.js"></script>
-    <script src="js/tournament-system/tournament-lifecycle-manager.js"></script>
-    <script src="js/tournament-system/tournament-deployment-manager.js"></script>
-    <script src="js/tournament-system/tournament-automation.js"></script>
-    <script src="js/tournament-system/tournament-system-init.js"></script>s/tournament-system/tournament-system-init.js"></script>
-    
-    <!-- Shared Styles -->
-    <link rel="stylesheet" href="shared.css">
+<!-- Supabase -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<!-- CRITICAL: Solana Web3.js - MUST LOAD FIRST -->
+<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+
+<!-- WalletWars Core Scripts - PROPER ORDER -->
+<script src="config.js"></script>
+<script src="walletwars-api.js"></script>
+<script src="wallet-service.js"></script>
+<script src="global-wallet-manager.js"></script>
+
+<!-- Escrow Integration Scripts -->
+<script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+<script src="https://unpkg.com/@project-serum/anchor@latest/dist/browser/index.js"></script>
+<script src="walletwars-escrow-integration.js"></script>
+
+<!-- Tournament System Scripts (ALL from /js/tournament-system/) -->
+<script src="js/tournament-system/tournament-config.js"></script>
+<script src="js/tournament-system/tournament-test-mode.js"></script>
+<script src="js/tournament-system/tournament-snapshot-manager.js"></script>
+<script src="js/tournament-system/tournament-lifecycle-manager.js"></script>
+<script src="js/tournament-system/tournament-deployment-manager.js"></script>
+<script src="js/tournament-system/tournament-automation.js"></script>
+<script src="js/tournament-system/tournament-system-init.js"></script>
+
+<!-- Shared Styles -->
+<link rel="stylesheet" href="shared.css">
     
     <style>
         /* Tournaments Specific Styles */
