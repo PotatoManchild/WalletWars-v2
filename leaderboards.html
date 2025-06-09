@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboards - WalletWars</title>
+
+      <!-- LOAD CONFIG FIRST -->
+    <script src="config.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- CRITICAL: Solana Web3.js - MUST LOAD FIRST -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <!-- WalletWars Scripts - ENHANCED ORDER WITH GLOBAL WALLET MANAGER -->
+    <script src="walletwars-api.js"></script>
+    <script src="wallet-service.js"></script> <!-- Enhanced wallet service -->
+    <script src="global-wallet-manager.js"></script> <!-- NEW: Global wallet persistence -->
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="shared.css">
+    
+    <style>
+        /* Enhanced Leaderboard Styles with GlobalWalletManager Support */
+        
+        .leaderboards-title {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Loading State */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(139, 92, 246, 0.2);
+            border-top: 4px solid #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #8b5cf6;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .loading-subtext {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        /* Error State */
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #ef4444;
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ef4444;
+            margin-bottom: 0.5rem;
+        }
+
+        .error-message {
+            color: #9ca3af;
+            margin-bottom: 2rem;
+            max-width: 400px;
+        }
+
+        .retry-btn {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .retry-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Enhanced Leaderboard Container */
+        .leaderboard-container {
+            background: rgba(31, 41, 55, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            overflow: hidden;
+        }
+
+        /* Desktop Table View */
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            display: table;
+        }
+
+        .table-header {
+            background: rgba(139, 92, 246, 0.1);
+            border-bottom: 2px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .table-header th {
+            padding: 1rem 2.5rem 1rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #8b5cf6;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .table-header th:hover {
+            background: rgba(139, 92, 246, 0.15);
+        }
+
+        .table-header th:first-child {
+            text-align: center;
+            width: 60px;
+            padding: 1rem 1.5rem 1rem 1rem;
+        }
+
+        .table-header th.sortable::after {
+            content: '▼';
+            position: absolute;
+            right: 0.5rem;
+            opacity: 1;
+            font-size: 0.9rem;
+            color: #ffffff;
+            margin-left: 0.5rem;
+        }
+
+        .table-header th.sort-asc::after {
+            content: '▲';
+            opacity: 1;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .table-header th.sort-desc::after {
+            content: '▼';
+            opacity: 1;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .table-body {
+            background: transparent;
+        }
+
+        .leaderboard-row {
+            border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+            border-left: 3px solid transparent;
+            border-right: 3px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .leaderboard-row:hover {
+            background: rgba(139, 92, 246, 0.08);
+            border-left-color: #8b5cf6;
+            border-right-color: #8b5cf6;
+            border-bottom-color: rgba(139, 92, 246, 0.3);
+            transform: translateX(2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+        }
+
+        .leaderboard-row.highlighted {
+            background: rgba(251, 191, 36, 0.1);
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .leaderboard-row td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
+        .rank-cell {
+            text-align: center;
+            font-weight: 700;
+            color: #8b5cf6;
+            font-size: 1rem;
+        }
+
+        .champion-cell {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .champion-avatar {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .champion-info {
+            flex: 1;
+        }
+
+        .champion-name {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .champion-address {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            font-family: monospace;
+        }
+
+        .winrate-cell {
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 1rem;
+        }
+
+        .tournaments-cell,
+        .earnings-cell {
+            color: #d1d5db;
+            font-size: 0.95rem;
+        }
+
+        .earnings-cell {
+            font-weight: 600;
+        }
+
+        /* Mobile Card View - Minimal Clean Layout */
+        .leaderboard-cards {
+            display: none;
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+        }
+
+        .champion-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-height: 60px;
+        }
+
+        .champion-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899, #06b6d4);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .champion-card:hover {
+            background: rgba(139, 92, 246, 0.08);
+            border-color: #8b5cf6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+        }
+
+        .champion-card:hover::before {
+            opacity: 1;
+        }
+
+        .champion-card-rank {
+            font-family: 'Orbitron', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            color: #8b5cf6;
+            min-width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .champion-card-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+            border: 2px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .champion-card-main {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+
+        .champion-card-name {
+            font-weight: 700;
+            color: #ffffff;
+            font-size: 0.95rem;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .champion-card-winrate {
+            font-size: 0.75rem;
+            color: #10b981;
+            font-weight: 600;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .champion-card-earnings {
+            text-align: right;
+            flex-shrink: 0;
+            min-width: 60px;
+        }
+
+        .champion-earnings-value {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #8b5cf6;
+            line-height: 1;
+            font-family: 'Orbitron', monospace;
+        }
+
+        .champion-earnings-label {
+            font-size: 0.6rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            line-height: 1;
+            margin-top: 0.1rem;
+        }
+
+        /* Special styling for top 3 */
+        .champion-card-rank.rank-1 { 
+            color: #fbbf24; 
+            text-shadow: 0 0 8px rgba(251, 191, 36, 0.5);
+        }
+        .champion-card-rank.rank-2 { 
+            color: #c0c0c0; 
+            text-shadow: 0 0 8px rgba(192, 192, 192, 0.5);
+        }
+        .champion-card-rank.rank-3 { 
+            color: #cd7f32; 
+            text-shadow: 0 0 8px rgba(205, 127, 50, 0.5);
+        }
+
+        .champion-card-avatar.rank-1 {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-color: rgba(251, 191, 36, 0.5);
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+        }
+
+        .champion-card-avatar.rank-2 {
+            background: linear-gradient(135deg, #c0c0c0, #9ca3af);
+            border-color: rgba(192, 192, 192, 0.5);
+            box-shadow: 0 0 8px rgba(192, 192, 192, 0.3);
+        }
+
+        .champion-card-avatar.rank-3 {
+            background: linear-gradient(135deg, #cd7f32, #a16207);
+            border-color: rgba(205, 127, 50, 0.5);
+            box-shadow: 0 0 8px rgba(205, 127, 50, 0.3);
+        }
+
+        /* Top 3 special badge */
+        .champion-card.top-3 {
+            border-width: 2px;
+        }
+
+        .champion-card.top-3.rank-1 {
+            border-color: rgba(251, 191, 36, 0.4);
+            background: rgba(251, 191, 36, 0.05);
+        }
+
+        .champion-card.top-3.rank-2 {
+            border-color: rgba(192, 192, 192, 0.4);
+            background: rgba(192, 192, 192, 0.05);
+        }
+
+        .champion-card.top-3.rank-3 {
+            border-color: rgba(205, 127, 50, 0.4);
+            background: rgba(205, 127, 50, 0.05);
+        }
+
+        /* No Results */
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #9ca3af;
+        }
+
+        .no-results-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Desktop Layout */
+        @media (min-width: 768px) {
+            .champion-avatar {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 767px) {
+            /* Hide table, show cards on mobile */
+            .leaderboard-table {
+                display: none;
+            }
+
+            .leaderboard-cards {
+                display: grid;
+            }
+
+            .page-content {
+                padding: 1rem;
+            }
+        }
+
+        /* Connection Status Banner */
+        .connection-status {
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .connection-status.global-manager {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            color: #8b5cf6;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-background"></div>
+    <div class="geometric-patterns"></div>
+
+    <!-- Navigation with Global Wallet Manager Support -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">WalletWars</a>
+            
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="tournaments.html">Tournaments</a></li>
+                <li><a href="leaderboards.html" class="active">Leaderboards</a></li>
+                <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                
+                <!-- Disconnected State -->
+                <li id="connectWalletBtn"><a href="#" class="btn-primary" onclick="window.connectWallet && window.connectWallet('phantom') || fallbackConnect()">Connect Wallet</a></li>
+                
+                <!-- Connected State (Hidden by default, managed by GlobalWalletManager) -->
+                <li id="championInfo" style="display: none;">
+                    <div id="navChampionAvatar">🔥</div>
+                    <span id="navChampionName">Champion</span>
+                    <button class="nav-disconnect" onclick="window.disconnectWallet && window.disconnectWallet()">Disconnect</button>
+                </li>
+            </ul>
+
+            <!-- Mobile Menu Toggle -->
+            <button class="mobile-menu-toggle" aria-label="Toggle mobile menu" aria-expanded="false">
+                <div class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Page Container -->
+    <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title leaderboards-title">Leaderboards</h1>
+            <p class="page-subtitle">Track elite Champions and discover where you rank</p>
+        </div>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- Connection Status Banner -->
+            <div id="connectionStatus" class="connection-status" style="display: none;">
+                <div id="connectionMessage">Checking GlobalWalletManager connection...</div>
+            </div>
+
+            <!-- Loading State -->
+            <div class="loading-container" id="loadingState">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Loading Leaderboards...</div>
+                <div class="loading-subtext">Fetching champion data via GlobalWalletManager</div>
+            </div>
+
+            <!-- Error State -->
+            <div class="error-container" id="errorState" style="display: none;">
+                <div class="error-icon">🚫</div>
+                <div class="error-title">Unable to Load Leaderboards</div>
+                <div class="error-message" id="errorMessage">
+                    Failed to connect to the database. Please check your internet connection and try again.
+                </div>
+                <button class="retry-btn" onclick="loadLeaderboard()">Retry</button>
+            </div>
+
+            <!-- Leaderboard Container -->
+            <div class="leaderboard-container" id="leaderboardContainer" style="display: none;">
+                <!-- Desktop Table View -->
+                <table class="leaderboard-table">
+                    <thead class="table-header">
+                        <tr>
+                            <th onclick="sortTable('rank')" class="sortable">Rank</th>
+                            <th onclick="sortTable('name')" class="sortable">Champion</th>
+                            <th onclick="sortTable('winrate')" class="sortable">Winrate</th>
+                            <th onclick="sortTable('tournaments')" class="sortable">Tournaments</th>
+                            <th onclick="sortTable('earnings')" class="sortable earnings-cell">Earnings</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-body" id="leaderboardBody">
+                        <!-- Champion rows will be populated by JavaScript -->
+                    </tbody>
+                </table>
+
+                <!-- Mobile Card View -->
+                <div class="leaderboard-cards" id="leaderboardCards">
+                    <!-- Champion cards will be populated by JavaScript -->
+                </div>
+                
+                <div class="no-results" id="noResults" style="display: none;">
+                    <div class="no-results-icon">🔍</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">No champions found</div>
+                    <div style="font-size: 0.9rem;">The leaderboard is empty. Be the first to compete!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // GLOBAL WALLET MANAGER INTEGRATION
+        // ========================================
+
+        // Fallback connect function for when GlobalWalletManager isn't ready
+        function fallbackConnect() {
+            alert('🔗 Wallet Connection\n\nWallet system is loading. Please visit the home page to connect your wallet and it will persist across all pages!');
+        }
+
+        // Check if GlobalWalletManager is available and get connection status
+        function checkGlobalWalletConnection() {
+            if (window.getWalletStatus) {
+                const status = window.getWalletStatus();
+                
+                const statusElement = document.getElementById('connectionStatus');
+                const messageElement = document.getElementById('connectionMessage');
+                
+                statusElement.style.display = 'block';
+                
+                if (status.isConnected && status.championName) {
+                    statusElement.className = 'connection-status global-manager';
+                    messageElement.innerHTML = `🔗 GlobalWalletManager: Connected as <strong>${status.championName}</strong> (${status.walletAddress?.substring(0, 8)}...)`;
+                    
+                    console.log(`✅ GlobalWalletManager: Found connected champion ${status.championName}`);
+                    return true;
+                } else {
+                    statusElement.className = 'connection-status disconnected';
+                    messageElement.textContent = '🔗 GlobalWalletManager: No wallet connected - Connect on any page to persist across the site';
+                    return false;
+                }
+            } else {
+                const statusElement = document.getElementById('connectionStatus');
+                const messageElement = document.getElementById('connectionMessage');
+                
+                statusElement.style.display = 'block';
+                statusElement.className = 'connection-status disconnected';
+                messageElement.textContent = '⚠️ GlobalWalletManager not available - Please refresh the page';
+                return false;
+            }
+        }
+
+        // ========================================
+        // MOBILE NAVIGATION
+        // ========================================
+
+        function initializeMobileNavigation() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            if (!mobileToggle || !navLinks || !hamburger) return;
+            
+            mobileToggle.addEventListener('click', function() {
+                const isOpen = navLinks.classList.contains('active');
+                if (isOpen) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            });
+            
+            const navLinksItems = navLinks.querySelectorAll('a');
+            navLinksItems.forEach(link => {
+                link.addEventListener('click', function() {
+                    closeMobileMenu();
+                });
+            });
+            
+            document.addEventListener('click', function(event) {
+                const isClickInsideNav = navLinks.contains(event.target) || 
+                                        mobileToggle.contains(event.target);
+                if (!isClickInsideNav && navLinks.classList.contains('active')) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        function openMobileMenu() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            navLinks.classList.add('active');
+            hamburger.classList.add('active');
+            mobileToggle.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenu() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            navLinks.classList.remove('active');
+            hamburger.classList.remove('active');
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        function handleWindowResize() {
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // ========================================
+        // LEADERBOARD DATA AND STATE
+        // ========================================
+
+        // Global leaderboard state
+        let leaderboardData = [];
+        let isLoading = false;
+
+        // ========================================
+        // LEADERBOARD LOADING WITH GLOBAL WALLET MANAGER
+        // ========================================
+
+        // Load leaderboard from database
+        async function loadLeaderboard() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            showLoadingState();
+            
+            try {
+                console.log('🏆 Loading leaderboard from database with GlobalWalletManager...');
+                
+                // Check if API is available
+                if (!window.walletWarsAPI) {
+                    throw new Error('Database connection not available. Please refresh the page.');
+                }
+                
+                // Fetch leaderboard data from Supabase
+                const result = await window.walletWarsAPI.getLeaderboard(100, 0);
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Failed to load leaderboard data');
+                }
+                
+                leaderboardData = result.leaderboard || [];
+                
+                if (leaderboardData.length === 0) {
+                    showNoResults();
+                } else {
+                    console.log(`✅ Loaded ${leaderboardData.length} champions with GlobalWalletManager integration`);
+                    showLeaderboard();
+                    renderLeaderboard();
+                }
+                
+                // Hide connection status after successful load
+                setTimeout(() => {
+                    const statusElement = document.getElementById('connectionStatus');
+                    if (statusElement) {
+                        statusElement.style.display = 'none';
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                console.error('❌ Failed to load leaderboard:', error);
+                showErrorState(error.message);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // ========================================
+        // UI STATE MANAGEMENT
+        // ========================================
+
+        // State management functions
+        function showLoadingState() {
+            document.getElementById('loadingState').style.display = 'flex';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('leaderboardContainer').style.display = 'none';
+        }
+
+        function showErrorState(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'flex';
+            document.getElementById('leaderboardContainer').style.display = 'none';
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        function showLeaderboard() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('leaderboardContainer').style.display = 'block';
+            document.getElementById('noResults').style.display = 'none';
+        }
+
+        function showNoResults() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('leaderboardContainer').style.display = 'block';
+            document.getElementById('noResults').style.display = 'block';
+            
+            // Hide table and cards
+            document.getElementById('leaderboardBody').innerHTML = '';
+            document.getElementById('leaderboardCards').innerHTML = '';
+        }
+
+        // ========================================
+        // LEADERBOARD RENDERING
+        // ========================================
+
+        // Render leaderboard data
+        function renderLeaderboard() {
+            if (!leaderboardData || leaderboardData.length === 0) {
+                showNoResults();
+                return;
+            }
+            
+            // Check if current user is in leaderboard via GlobalWalletManager
+            const walletStatus = window.getWalletStatus ? window.getWalletStatus() : { isConnected: false };
+            let currentUserRank = null;
+            
+            if (walletStatus.isConnected && walletStatus.championName) {
+                const userEntry = leaderboardData.find(champion => 
+                    champion.champion_name === walletStatus.championName
+                );
+                if (userEntry) {
+                    currentUserRank = userEntry.rank;
+                    console.log(`👑 Current user "${walletStatus.championName}" found at rank ${currentUserRank}`);
+                }
+            }
+            
+            // Render table view (desktop)
+            renderTableView(currentUserRank);
+            
+            // Render card view (mobile)
+            renderCardView(currentUserRank);
+        }
+
+        function renderTableView(currentUserRank = null) {
+            const tbody = document.getElementById('leaderboardBody');
+            let html = '';
+            
+            leaderboardData.forEach((champion, index) => {
+                const rank = champion.rank || (index + 1);
+                let rankClass = '';
+                let rowClass = 'leaderboard-row';
+                
+                // Highlight current user's row
+                if (currentUserRank && rank === currentUserRank) {
+                    rowClass += ' highlighted';
+                }
+                
+                if (rank === 1) rankClass = 'rank-1';
+                else if (rank === 2) rankClass = 'rank-2';
+                else if (rank === 3) rankClass = 'rank-3';
+                
+                html += `
+                <tr class="${rowClass}" data-champion-rank="${rank}">
+                    <td class="rank-cell ${rankClass}">${rank}</td>
+                    <td>
+                        <div class="champion-cell">
+                            <div class="champion-avatar">${champion.avatar_emoji || '🔥'}</div>
+                            <div class="champion-info">
+                                <div class="champion-name">${champion.champion_name || 'Unknown Champion'}</div>
+                                <div class="champion-address">Champion #${rank}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="winrate-cell">${champion.win_rate || '0'}%</td>
+                    <td class="tournaments-cell">${champion.tournaments_played || 0}</td>
+                    <td class="earnings-cell">${(champion.total_sol_earned || 0).toFixed(2)} SOL</td>
+                </tr>`;
+            });
+            
+            tbody.innerHTML = html;
+        }
+
+        function renderCardView(currentUserRank = null) {
+            const cardsContainer = document.getElementById('leaderboardCards');
+            let html = '';
+            
+            leaderboardData.forEach((champion, index) => {
+                const rank = champion.rank || (index + 1);
+                let rankClass = '';
+                let avatarClass = 'champion-card-avatar';
+                let cardClass = 'champion-card';
+                
+                // Highlight current user's card
+                if (currentUserRank && rank === currentUserRank) {
+                    cardClass += ' highlighted';
+                }
+                
+                if (rank === 1) {
+                    rankClass = 'rank-1';
+                    avatarClass += ' rank-1';
+                    cardClass += ' top-3 rank-1';
+                } else if (rank === 2) {
+                    rankClass = 'rank-2';
+                    avatarClass += ' rank-2';
+                    cardClass += ' top-3 rank-2';
+                } else if (rank === 3) {
+                    rankClass = 'rank-3';
+                    avatarClass += ' rank-3';
+                    cardClass += ' top-3 rank-3';
+                }
+                
+                const earnings = Math.round(champion.total_sol_earned || 0);
+                
+                html += `
+                <div class="${cardClass}" data-champion-rank="${rank}">
+                    <div class="champion-card-rank ${rankClass}">#${rank}</div>
+                    <div class="${avatarClass}">${champion.avatar_emoji || '🔥'}</div>
+                    <div class="champion-card-main">
+                        <div class="champion-card-name">${champion.champion_name || 'Unknown Champion'}</div>
+                        <div class="champion-card-winrate">${champion.win_rate || '0'}% winrate</div>
+                    </div>
+                    <div class="champion-card-earnings">
+                        <div class="champion-earnings-value">${earnings}</div>
+                        <div class="champion-earnings-label">SOL</div>
+                    </div>
+                </div>`;
+            });
+            
+            cardsContainer.innerHTML = html;
+        }
+
+        // Sorting functionality (for future enhancement)
+        function sortTable(field) {
+            // This would sort the leaderboardData array and re-render
+            console.log(`Sorting by: ${field} (GlobalWalletManager integration)`);
+            // For now, we'll keep the database-provided order
+        }
+
+        // ========================================
+        // INITIALIZATION WITH GLOBAL WALLET MANAGER
+        // ========================================
+
+        // Initialize leaderboard on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize mobile navigation
+            initializeMobileNavigation();
+            handleWindowResize();
+            
+            console.log('🎮 WalletWars Leaderboards page loading with GlobalWalletManager...');
+            
+            // Check GlobalWalletManager connection status
+            const hasConnection = checkGlobalWalletConnection();
+            if (hasConnection) {
+                console.log('✅ GlobalWalletManager connection detected on leaderboards page');
+            }
+            
+            // Load leaderboard data
+            loadLeaderboard();
+            
+            // Set up periodic refresh (every 30 seconds)
+            setInterval(() => {
+                if (!isLoading) {
+                    console.log('🔄 Refreshing leaderboard data with GlobalWalletManager...');
+                    loadLeaderboard();
+                }
+            }, 30000);
+        });
+
+        console.log('✅ WalletWars Leaderboards page with GlobalWalletManager integration loaded!');
+
+              // Simple wallet connection for non-index pages
+        function attemptQuickConnect() {
+            if (window.globalWalletManager) {
+                // Try to connect with Phantom by default
+                window.connectWallet('phantom').then(success => {
+                    if (success) {
+                        alert('Wallet connected! Please visit the home page to complete champion setup.');
+                        window.location.href = 'index.html';
+                    }
+                }).catch(error => {
+                    alert('Failed to connect wallet. Please try from the home page.');
+                    window.location.href = 'index.html';
+                });
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Override the connect button behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            const connectBtn = document.querySelector('#connectWalletBtn a');
+            if (connectBtn) {
+                connectBtn.onclick = function(e) {
+                    e.preventDefault();
+                    attemptQuickConnect();
+                };
+            }
+        });
+        
+    </script>
+</body>
+</html>

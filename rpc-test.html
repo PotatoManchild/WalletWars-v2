@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPC Endpoint Tester</title>
+    
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <style>
+        body {
+            font-family: monospace;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .endpoint-test {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .endpoint-name {
+            font-weight: bold;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+        }
+        
+        .endpoint-url {
+            color: #9ca3af;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .test-result {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-top: 0.5rem;
+        }
+        
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .testing {
+            background: rgba(251, 191, 36, 0.1);
+            color: #fbbf24;
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            margin: 1rem 0;
+            font-weight: 600;
+        }
+        
+        h1 {
+            color: #8b5cf6;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔗 Solana RPC Endpoint Tester</h1>
+    
+    <button class="btn" onclick="testAllEndpoints()">Test All Endpoints</button>
+    
+    <div id="endpoints-container">
+        <!-- Endpoints will be populated by JavaScript -->
+    </div>
+
+    <script>
+        const endpoints = [
+            {
+                name: 'QuickNode Public',
+                url: 'https://solana-mainnet.rpc.extrnode.com',
+                description: 'Free public RPC by QuickNode'
+            },
+            {
+                name: 'Solana Labs Official',
+                url: 'https://api.mainnet-beta.solana.com',
+                description: 'Official Solana Labs RPC'
+            },
+            {
+                name: 'Project Serum',
+                url: 'https://solana-api.projectserum.com',
+                description: 'Project Serum public RPC'
+            },
+            {
+                name: 'GenesysGo',
+                url: 'https://ssc-dao.genesysgo.net',
+                description: 'GenesysGo public RPC'
+            },
+            {
+                name: 'Ankr',
+                url: 'https://rpc.ankr.com/solana',
+                description: 'Ankr public RPC'
+            },
+            {
+                name: 'Syndica',
+                url: 'https://solana-mainnet.core.chainstack.com/rpc/v1',
+                description: 'Chainstack public RPC'
+            },
+            {
+                name: 'RPC Pool',
+                url: 'https://solana.rpcpool.com',
+                description: 'RPC Pool public endpoint'
+            }
+        ];
+
+        function createEndpointElement(endpoint, index) {
+            return `
+                <div class="endpoint-test" id="endpoint-${index}">
+                    <div class="endpoint-name">${endpoint.name}</div>
+                    <div class="endpoint-url">${endpoint.url}</div>
+                    <div style="color: #9ca3af; font-size: 0.8rem;">${endpoint.description}</div>
+                    <div class="test-result testing" id="result-${index}">
+                        Ready to test...
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderEndpoints() {
+            const container = document.getElementById('endpoints-container');
+            container.innerHTML = endpoints.map((endpoint, index) => 
+                createEndpointElement(endpoint, index)
+            ).join('');
+        }
+
+        async function testEndpoint(endpoint, index) {
+            const resultElement = document.getElementById(`result-${index}`);
+            resultElement.className = 'test-result testing';
+            resultElement.textContent = 'Testing...';
+
+            try {
+                const { Connection, PublicKey } = window.solanaWeb3;
+                const connection = new Connection(endpoint.url, 'confirmed');
+                
+                // Test with SOL token mint address
+                const testAddress = new PublicKey('So11111111111111111111111111111111111111112');
+                
+                const startTime = Date.now();
+                const balance = await connection.getBalance(testAddress);
+                const responseTime = Date.now() - startTime;
+                
+                resultElement.className = 'test-result success';
+                resultElement.innerHTML = `
+                    ✅ SUCCESS<br>
+                    Response Time: ${responseTime}ms<br>
+                    Balance: ${balance / 1000000000} SOL
+                `;
+                
+                return { success: true, responseTime, endpoint: endpoint.name };
+                
+            } catch (error) {
+                resultElement.className = 'test-result error';
+                resultElement.innerHTML = `
+                    ❌ FAILED<br>
+                    Error: ${error.message}
+                `;
+                
+                return { success: false, error: error.message, endpoint: endpoint.name };
+            }
+        }
+
+        async function testAllEndpoints() {
+            console.log('🔍 Testing all RPC endpoints...');
+            
+            const results = [];
+            
+            // Test endpoints one by one to avoid rate limiting
+            for (let i = 0; i < endpoints.length; i++) {
+                const result = await testEndpoint(endpoints[i], i);
+                results.push(result);
+                
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Log summary
+            const successful = results.filter(r => r.success);
+            const failed = results.filter(r => !r.success);
+            
+            console.log('\n📊 Test Results Summary:');
+            console.log(`✅ Successful: ${successful.length}`);
+            console.log(`❌ Failed: ${failed.length}`);
+            
+            if (successful.length > 0) {
+                console.log('\n🚀 Working endpoints:');
+                successful.forEach(result => {
+                    console.log(`  • ${result.endpoint}: ${result.responseTime}ms`);
+                });
+                
+                // Find fastest endpoint
+                const fastest = successful.reduce((prev, current) => 
+                    (prev.responseTime < current.responseTime) ? prev : current
+                );
+                console.log(`\n⚡ Fastest: ${fastest.endpoint} (${fastest.responseTime}ms)`);
+            }
+            
+            if (failed.length > 0) {
+                console.log('\n❌ Failed endpoints:');
+                failed.forEach(result => {
+                    console.log(`  • ${result.endpoint}: ${result.error}`);
+                });
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            renderEndpoints();
+            
+            // Auto-test after a delay
+            setTimeout(() => {
+                console.log('🚀 Auto-testing endpoints...');
+                testAllEndpoints();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

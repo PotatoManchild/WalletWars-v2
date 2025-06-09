@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WalletWars Tournament Setup</title>
+    
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- WalletWars API -->
+    <script src="walletwars-api.js"></script>
+    <!-- Solscan Service -->
+    <script src="solscan-service.js"></script>
+    <!-- Tournament Setup -->
+    <script src="tournament-setup.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            line-height: 1.6;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: rgba(31, 41, 55, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+        }
+
+        h1 {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .setup-section {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.1);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            color: #8b5cf6;
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: #8b5cf6;
+            color: #8b5cf6;
+        }
+
+        .status-display {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .warning { color: #f59e0b; }
+        .info { color: #06b6d4; }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            padding: 0.5rem 0;
+            border-left: 3px solid rgba(139, 92, 246, 0.3);
+            padding-left: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-list li.completed {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .instruction {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .instruction-title {
+            color: #06b6d4;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.8rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(31, 41, 55, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 WalletWars Tournament Setup</h1>
+        
+        <!-- Step 1: Database Setup -->
+        <div class="setup-section">
+            <div class="section-title">📊 Step 1: Database Schema Setup</div>
+            <div class="instruction">
+                <div class="instruction-title">🔧 Supabase SQL Setup Required</div>
+                <p>First, you need to run the database schema setup in your Supabase project:</p>
+                <ol>
+                    <li>Go to your Supabase project dashboard</li>
+                    <li>Navigate to the "SQL Editor" tab</li>
+                    <li>Copy and run the SQL schema from the provided artifact</li>
+                    <li>This will create all tournament tables and sample data</li>
+                </ol>
+            </div>
+            <button class="btn-secondary" onclick="showDatabaseSchema()">View Database Schema</button>
+            <button class="btn" onclick="testDatabaseConnection()">Test Database Connection</button>
+            
+            <div id="schemaDisplay" style="display: none;">
+                <h4>Database Schema SQL (Copy to Supabase SQL Editor):</h4>
+                <pre id="schemaSQL">Loading schema...</pre>
+            </div>
+        </div>
+
+        <!-- Step 2: Service Status -->
+        <div class="setup-section">
+            <div class="section-title">🔍 Step 2: Service Status Check</div>
+            <p>Check if all required services are working properly:</p>
+            
+            <button class="btn" onclick="checkSystemStatus()">Check All Services</button>
+            <button class="btn-secondary" onclick="testSolscanAPI()">Test Solscan API</button>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="statusProgress"></div>
+            </div>
+            
+            <div class="status-display" id="statusOutput">
+                Click "Check All Services" to verify your setup...
+            </div>
+        </div>
+
+        <!-- Step 3: Tournament Setup -->
+        <div class="setup-section">
+            <div class="section-title">🎮 Step 3: Tournament Initialization</div>
+            <p>Set up initial tournament templates and create sample tournaments:</p>
+            
+            <button class="btn" onclick="runCompleteSetup()">Run Complete Setup</button>
+            <button class="btn-secondary" onclick="setupTemplatesOnly()">Templates Only</button>
+            <button class="btn-secondary" onclick="createSampleTournament()">Create Sample Tournament</button>
+            
+            <ul class="step-list" id="setupSteps">
+                <li id="step-templates">Create tournament templates</li>
+                <li id="step-solscan">Test Solscan integration</li>
+                <li id="step-tournaments">Generate sample tournaments</li>
+                <li id="step-snapshots">Test wallet snapshots</li>
+                <li id="step-verification">Verify complete setup</li>
+            </ul>
+        </div>
+
+        <!-- Step 4: Testing -->
+        <div class="setup-section">
+            <div class="section-title">🧪 Step 4: Testing & Verification</div>
+            <p>Test individual components of the tournament system:</p>
+            
+            <button class="btn-secondary" onclick="testWalletSnapshot()">Test Wallet Snapshot</button>
+            <button class="btn-secondary" onclick="testTournamentLoad()">Test Tournament Loading</button>
+            <button class="btn-secondary" onclick="showUpcomingTournaments()">Show Upcoming Tournaments</button>
+            
+            <div class="instruction">
+                <div class="instruction-title">🎯 Test Wallet Address</div>
+                <p>For testing wallet snapshots, you can use this Solana address:</p>
+                <pre>So11111111111111111111111111111111111111112</pre>
+                <p>Or enter your own wallet address for testing:</p>
+                <input type="text" id="testWalletAddress" placeholder="Enter Solana wallet address..." 
+                       style="width: 100%; padding: 0.5rem; background: rgba(31, 41, 55, 0.5); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 0.5rem; color: white; margin: 0.5rem 0;">
+                <button class="btn-secondary" onclick="testCustomWallet()">Test Custom Wallet</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Launch -->
+        <div class="setup-section">
+            <div class="section-title">🚀 Step 5: Launch Tournament System</div>
+            <p>Once everything is set up, your tournament system is ready:</p>
+            
+            <button class="btn" onclick="goToTournaments()">Go to Tournaments Page</button>
+            <button class="btn-secondary" onclick="showFinalStatus()">Show Final Status</button>
+            
+            <div class="instruction">
+                <div class="instruction-title">✅ Next Steps</div>
+                <p>After setup is complete:</p>
+                <ol>
+                    <li>Visit the tournaments page to see real tournament data</li>
+                    <li>Connect a wallet and create a champion to test registration</li>
+                    <li>Use the browser console to monitor API calls and data flow</li>
+                    <li>Check the implementation guide for advanced features</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Output Console -->
+        <div class="setup-section">
+            <div class="section-title">💻 Console Output</div>
+            <div class="status-display" id="consoleOutput">
+                Waiting for commands...
+            </div>
+            <button class="btn-secondary" onclick="clearConsole()">Clear Console</button>
+        </div>
+    </div>
+
+    <script>
+        let setupProgress = 0;
+        let consoleLog = '';
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logLine = `[${timestamp}] ${prefix} ${message}`;
+            
+            consoleLog += logLine + '\n';
+            document.getElementById('consoleOutput').innerHTML = `<pre>${consoleLog}</pre>`;
+            document.getElementById('consoleOutput').scrollTop = document.getElementById('consoleOutput').scrollHeight;
+            
+            console.log(logLine);
+        }
+
+        function updateProgress(percent) {
+            setupProgress = percent;
+            document.getElementById('statusProgress').style.width = percent + '%';
+        }
+
+        function markStepCompleted(stepId) {
+            const step = document.getElementById(stepId);
+            if (step) {
+                step.classList.add('completed');
+            }
+        }
+
+        function clearConsole() {
+            consoleLog = '';
+            document.getElementById('consoleOutput').innerHTML = 'Console cleared...';
+        }
+
+        async function testDatabaseConnection() {
+            log('Testing database connection...', 'info');
+            
+            try {
+                if (!window.walletWarsAPI) {
+                    throw new Error('WalletWars API not loaded');
+                }
+
+                const connected = await window.walletWarsAPI.testConnection();
+                
+                if (connected) {
+                    log('Database connection successful!', 'success');
+                    updateProgress(20);
+                } else {
+                    log('Database connection failed', 'error');
+                }
+            } catch (error) {
+                log(`Database test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkSystemStatus() {
+            log('Checking system status...', 'info');
+            updateProgress(10);
+            
+            try {
+                if (!window.tournamentSetup) {
+                    throw new Error('Tournament setup scripts not loaded');
+                }
+
+                const status = await window.tournamentSetup.checkSystemStatus();
+                
+                const statusDiv = document.getElementById('statusOutput');
+                statusDiv.innerHTML = `
+                    <div class="${status.database ? 'success' : 'error'}">Database: ${status.database ? '✅ Connected' : '❌ Disconnected'}</div>
+                    <div class="${status.solscan ? 'success' : 'error'}">Solscan API: ${status.solscan ? '✅ Online' : '❌ Offline'}</div>
+                    <div class="info">Tournament Templates: ${status.templates || 0} available</div>
+                    <div class="info">Upcoming Tournaments: ${status.tournaments || 0} scheduled</div>
+                    <div class="info">Rate Limit Available: ${status.rateLimitAvailable || 0} requests</div>
+                `;
+                
+                if (status.database && status.solscan) {
+                    updateProgress(50);
+                    log('System status check completed - all services operational', 'success');
+                } else {
+                    log('System status check completed - some services need attention', 'warning');
+                }
+                
+            } catch (error) {
+                log(`Status check error: ${error.message}`, 'error');
+                document.getElementById('statusOutput').innerHTML = `<div class="error">Status check failed: ${error.message}</div>`;
+            }
+        }
+
+        async function runCompleteSetup() {
+            log('Starting complete tournament setup...', 'info');
+            updateProgress(0);
+            
+            try {
+                if (!window.tournamentSetup) {
+                    throw new Error('Tournament setup scripts not loaded');
+                }
+
+                const result = await window.tournamentSetup.runCompleteSetup();
+                
+                if (result.success) {
+                    log('Complete setup finished successfully!', 'success');
+                    markStepCompleted('step-templates');
+                    markStepCompleted('step-solscan');
+                    markStepCompleted('step-tournaments');
+                    markStepCompleted('step-snapshots');
+                    markStepCompleted('step-verification');
+                    updateProgress(100);
+                    
+                    log(`Solscan API: ${result.solscanWorking ? 'Working' : 'Issues detected'}`, result.solscanWorking ? 'success' : 'warning');
+                    log(`Upcoming tournaments: ${result.upcomingTournaments} created`, 'info');
+                    log('Tournament system is ready!', 'success');
+                } else {
+                    log(`Setup failed: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`Setup error: ${error.message}`, 'error');
+            }
+        }
+
+        async function setupTemplatesOnly() {
+            log('Setting up tournament templates...', 'info');
+            
+            try {
+                const result = await window.tournamentSetup.setupInitialTournamentTemplates();
+                log(`Templates setup: ${result.created} created, ${result.existing} already existed`, 'success');
+                markStepCompleted('step-templates');
+                updateProgress(30);
+            } catch (error) {
+                log(`Template setup error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSolscanAPI() {
+            log('Testing Solscan API...', 'info');
+            
+            try {
+                const result = await window.tournamentSetup.testSolscanIntegration();
+                
+                if (result.success) {
+                    log('Solscan API test passed', 'success');
+                } else {
+                    log(`Solscan API test failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Solscan test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testWalletSnapshot() {
+            log('Testing wallet snapshot functionality...', 'info');
+            
+            try {
+                const result = await window.tournamentSetup.testWalletSnapshot();
+                
+                if (result.success) {
+                    log(`Wallet snapshot test passed - ${result.snapshot.solBalance} SOL`, 'success');
+                    markStepCompleted('step-snapshots');
+                } else {
+                    log(`Wallet snapshot test failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Snapshot test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCustomWallet() {
+            const address = document.getElementById('testWalletAddress').value.trim();
+            
+            if (!address) {
+                log('Please enter a wallet address', 'warning');
+                return;
+            }
+            
+            log(`Testing custom wallet: ${address.substring(0, 8)}...`, 'info');
+            
+            try {
+                const result = await window.tournamentSetup.testWalletSnapshot(address);
+                
+                if (result.success) {
+                    log(`Custom wallet test passed - ${result.snapshot.solBalance} SOL, ${result.snapshot.tokenBalances.length} tokens`, 'success');
+                } else {
+                    log(`Custom wallet test failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Custom wallet test error: ${error.message}`, 'error');
+            }
+        }
+
+        async function createSampleTournament() {
+            log('Creating sample tournament...', 'info');
+            
+            try {
+                const result = await window.tournamentSetup.createSampleTournament();
+                
+                if (result) {
+                    log(`Sample tournament created: ${result.id}`, 'success');
+                    markStepCompleted('step-tournaments');
+                } else {
+                    log('Failed to create sample tournament', 'error');
+                }
+            } catch (error) {
+                log(`Sample tournament error: ${error.message}`, 'error');
+            }
+        }
+
+        async function showUpcomingTournaments() {
+            log('Loading upcoming tournaments...', 'info');
+            
+            try {
+                const result = await window.walletWarsAPI.getUpcomingTournaments();
+                
+                if (result.success) {
+                    log(`Found ${result.tournaments.length} upcoming tournaments:`, 'success');
+                    result.tournaments.forEach(tournament => {
+                        log(`  • ${tournament.tournament_templates.name} - ${tournament.status}`, 'info');
+                    });
+                } else {
+                    log(`Failed to load tournaments: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                log(`Tournament loading error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTournamentLoad() {
+            log('Testing tournament loading...', 'info');
+            
+            try {
+                // Test getting tournament templates
+                const templatesResult = await window.walletWarsAPI.getTournamentTemplates();
+                log(`Tournament templates: ${templatesResult.success ? templatesResult.templates.length : 'Failed to load'}`, templatesResult.success ? 'success' : 'error');
+                
+                // Test getting upcoming tournaments
+                const tournamentsResult = await window.walletWarsAPI.getUpcomingTournaments();
+                log(`Upcoming tournaments: ${tournamentsResult.success ? tournamentsResult.tournaments.length : 'Failed to load'}`, tournamentsResult.success ? 'success' : 'error');
+                
+            } catch (error) {
+                log(`Tournament load test error: ${error.message}`, 'error');
+            }
+        }
+
+        function showDatabaseSchema() {
+            const display = document.getElementById('schemaDisplay');
+            const sqlPre = document.getElementById('schemaSQL');
+            
+            if (display.style.display === 'none') {
+                // This would contain the actual SQL schema
+                sqlPre.textContent = `-- WalletWars Tournament Database Schema
+-- Copy this SQL and run it in your Supabase SQL Editor
+
+-- See the Tournament Database Schema artifact for the complete SQL
+-- It includes tables for:
+-- • tournament_templates
+-- • tournament_instances  
+-- • tournament_entries
+-- • wallet_snapshots
+-- • transaction_monitoring
+
+-- Plus indexes, RLS policies, and sample data`;
+                
+                display.style.display = 'block';
+                log('Database schema displayed - copy SQL to Supabase', 'info');
+            } else {
+                display.style.display = 'none';
+            }
+        }
+
+        function goToTournaments() {
+            log('Redirecting to tournaments page...', 'info');
+            window.location.href = 'tournaments.html';
+        }
+
+        async function showFinalStatus() {
+            log('Checking final system status...', 'info');
+            await checkSystemStatus();
+            
+            if (setupProgress >= 80) {
+                log('🎉 Tournament system is ready for use!', 'success');
+                log('You can now visit the tournaments page to see real data', 'info');
+            } else {
+                log('⚠️ Setup may be incomplete - check status above', 'warning');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            log('WalletWars Tournament Setup page loaded', 'info');
+            
+            // Check if APIs are loaded
+            setTimeout(() => {
+                if (window.walletWarsAPI) {
+                    log('WalletWars API detected', 'success');
+                } else {
+                    log('WalletWars API not loaded', 'error');
+                }
+                
+                if (window.solscanService) {
+                    log('Solscan service detected', 'success');
+                } else {
+                    log('Solscan service not loaded', 'error');
+                }
+                
+                if (window.tournamentSetup) {
+                    log('Tournament setup scripts detected', 'success');
+                } else {
+                    log('Tournament setup scripts not loaded', 'error');
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
