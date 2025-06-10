@@ -436,7 +436,7 @@ class SupabaseAdminAuth {
      */
     protectPage() {
         if (!this.authorized) {
-            document.body.style.display = 'none';
+            // Don't hide the body - just show auth modal
             this.requireAuth();
             return false;
         }
