@@ -13,8 +13,16 @@ class SupabaseAdminAuth {
             '6PoB9i9kpumDze7EhiL3CicAuEPxDAzrTVzHYot9sx9h'
         ];
         
-         // Use the existing Supabase client from walletwars-api.js
-        this.supabase = window.walletWarsAPI.supabase;
+        // Get Supabase client - with fallback
+        if (window.walletWarsAPI && window.walletWarsAPI.supabase) {
+            this.supabase = window.walletWarsAPI.supabase;
+        } else {
+            // Create our own client if walletWarsAPI isn't ready yet
+            this.supabase = window.supabase.createClient(
+                window.SUPABASE_URL || 'https://miwtcvcdpoqtqjbbvnxz.supabase.co',
+                window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pd3RjdmNkcG9xdHFqYmJ2bnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3Mjk4MTAsImV4cCI6MjA2NDMwNTgxMH0.5FCUjucAu2PxGEVc3X01dwa4wt4tHLewsjBO7s55Zt8'
+            );
+        }
         
         this.init();
     }
