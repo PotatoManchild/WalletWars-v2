@@ -228,7 +228,8 @@ class SupabaseAdminAuth {
                 return { success: false, error: error.message };
             }
             
-            if (data.success) {
+            // Check if data exists and has the expected structure
+            if (data && data.success === true) {
                 // Store session
                 this.adminToken = data.token;
                 this.authorized = true;
@@ -241,8 +242,8 @@ class SupabaseAdminAuth {
                 console.log('✅ Admin authenticated successfully');
                 return { success: true };
             }
-            
-            return { success: false, error: data.error };
+            // If no success, return the error
+            return { success: false, error: (data && data.error) || 'Authentication failed' };
             
         } catch (error) {
             console.error('Authentication error:', error);
