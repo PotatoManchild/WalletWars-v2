@@ -11,12 +11,6 @@
     <!-- Solana Web3.js - MUST LOAD FIRST -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
-    <!-- Buffer polyfill for Anchor -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
-
-    <!-- Anchor (if available) -->
-    <script src="https://unpkg.com/@project-serum/anchor@latest/dist/browser/index.js"></script>
-
     <!-- Supabase -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
@@ -25,7 +19,7 @@
     <script src="../walletwars-api.js"></script>
     <script src="../wallet-service.js"></script>
     <script src="../global-wallet-manager.js"></script>
-    <script src="../walletwars-escrow-integration.js"></script>
+    <!-- SKIP: <script src="../walletwars-escrow-integration.js"></script> -->
 
     <!-- Tournament System Scripts from parent js folder -->
     <script src="../js/tournament-system/tournament-config.js"></script>
@@ -378,7 +372,7 @@
                 </button>
                 
                 <div class="warning-box" style="margin-top: 1rem;">
-                    <strong>⚠️ Important:</strong> Use the automation wallet, not the admin wallet (lost private key)
+                    <strong>⚠️ Important:</strong> Connect with Admin Wallet
                 </div>
             </div>
 
