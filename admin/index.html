@@ -3,31 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WalletWars Tournament Admin Tools</title>
+    <title>WalletWars Admin Control Center</title>
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
-    <!-- Solana Web3.js - MUST LOAD FIRST -->
+    <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 
     <!-- Supabase -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
-    <!-- WalletWars Core Scripts - FIXED with ../ prefix -->
+    <!-- WalletWars Core Scripts -->
     <script src="../config.js"></script>
     <script src="../walletwars-api.js"></script>
     <script src="../wallet-service.js"></script>
     <script src="../global-wallet-manager.js"></script>
-    <!-- SKIP: <script src="../walletwars-escrow-integration.js"></script> -->
 
-    <!-- Tournament System Scripts from parent js folder -->
+    <!-- Tournament System Scripts -->
     <script src="../js/tournament-system/tournament-config.js"></script>
     <script src="../js/tournament-system/tournament-test-mode.js"></script>
     <script src="../js/tournament-system/tournament-deployment-manager.js"></script>
     <script src="../js/tournament-system/tournament-lifecycle-manager.js"></script>
 
-    <!-- Admin specific script MUST BE LAST -->
+    <!-- Admin Auth -->
     <script src="admin-auth.js"></script>
     
     <style>
@@ -42,39 +41,44 @@
             background: #0a0a0a;
             color: #ffffff;
             line-height: 1.6;
-        }
-
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-            padding-top: 60px; /* Account for test mode banner */
+            min-height: 100vh;
         }
 
         .admin-header {
-            text-align: center;
-            margin-bottom: 3rem;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 1.5rem;
+            border-bottom: 2px solid #00d4ff;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .admin-title {
             font-family: 'Orbitron', monospace;
-            font-size: 3rem;
+            font-size: 2rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
         }
 
         .connection-status {
             display: flex;
-            justify-content: center;
-            gap: 2rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
         }
 
-        .status-item {
+        .status-indicator {
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -82,49 +86,117 @@
             background: rgba(31, 41, 55, 0.5);
             border: 1px solid rgba(139, 92, 246, 0.2);
             border-radius: 0.5rem;
+            font-size: 0.9rem;
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: #ef4444;
         }
 
-        .status-dot.connected {
+        .status-dot.active {
             background: #10b981;
+            animation: pulse 2s infinite;
         }
 
-        .admin-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 2rem;
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tab-navigation {
+            display: flex;
+            gap: 1rem;
             margin-bottom: 2rem;
+            border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+            overflow-x: auto;
         }
 
-        .admin-card {
+        .tab-button {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: #ffffff;
+        }
+
+        .tab-button.active {
+            color: #00d4ff;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #00d4ff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .control-panel {
             background: rgba(31, 41, 55, 0.3);
             border: 1px solid rgba(139, 92, 246, 0.2);
             border-radius: 1rem;
             padding: 2rem;
-            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
         }
 
-        .card-title {
+        .panel-title {
             font-size: 1.5rem;
             font-weight: 600;
             color: #8b5cf6;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
-        .form-group {
-            margin-bottom: 1.5rem;
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
         }
 
-        .form-label {
+        .control-group {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.1);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+
+        .control-label {
             display: block;
             font-size: 0.9rem;
             color: #d1d5db;
@@ -132,31 +204,118 @@
             font-weight: 500;
         }
 
-        .form-input {
+        .control-input {
             width: 100%;
             padding: 0.75rem;
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(139, 92, 246, 0.3);
             border-radius: 0.5rem;
             color: #ffffff;
             font-size: 1rem;
+            transition: all 0.3s ease;
         }
 
-        .form-input:focus {
+        .control-input:focus {
             outline: none;
             border-color: #8b5cf6;
             box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
         }
 
-        .form-select {
+        .control-select {
             width: 100%;
             padding: 0.75rem;
-            background: rgba(15, 23, 42, 0.5);
+            background: rgba(15, 23, 42, 0.8);
             border: 1px solid rgba(139, 92, 246, 0.3);
             border-radius: 0.5rem;
             color: #ffffff;
             font-size: 1rem;
             cursor: pointer;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: rgba(107, 114, 128, 0.3);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: rgba(16, 185, 129, 0.3);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(30px);
+        }
+
+        .variant-card {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .variant-card:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+        }
+
+        .variant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .variant-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .variant-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .detail-label {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            color: #ffffff;
+            font-weight: 500;
         }
 
         .btn {
@@ -201,13 +360,19 @@
             background: #dc2626;
         }
 
-        .btn-test {
-            background: #f59e0b;
-            color: white;
+        .preview-section {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-top: 2rem;
         }
 
-        .btn-test:hover {
-            background: #d97706;
+        .preview-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #06b6d4;
+            margin-bottom: 1rem;
         }
 
         .stats-grid {
@@ -217,7 +382,7 @@
             margin-bottom: 2rem;
         }
 
-        .stat-box {
+        .stat-card {
             background: rgba(15, 23, 42, 0.5);
             padding: 1.5rem;
             border-radius: 0.5rem;
@@ -239,56 +404,25 @@
             letter-spacing: 1px;
         }
 
-        .output-console {
-            background: #000;
-            border: 1px solid rgba(139, 92, 246, 0.3);
-            border-radius: 0.5rem;
+        .alert {
             padding: 1rem;
-            margin-top: 1rem;
-            height: 300px;
-            overflow-y: auto;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 0.85rem;
-        }
-
-        .console-line {
-            margin: 0.25rem 0;
-            line-height: 1.4;
-        }
-
-        .console-success { color: #10b981; }
-        .console-error { color: #ef4444; }
-        .console-warning { color: #f59e0b; }
-        .console-info { color: #06b6d4; }
-
-        .info-box {
-            background: rgba(6, 182, 212, 0.1);
-            border: 1px solid rgba(6, 182, 212, 0.3);
             border-radius: 0.5rem;
-            padding: 1rem;
             margin: 1rem 0;
         }
 
-        .warning-box {
+        .alert-warning {
             background: rgba(245, 158, 11, 0.1);
             border: 1px solid rgba(245, 158, 11, 0.3);
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin: 1rem 0;
+            color: #f59e0b;
         }
 
-        .test-mode-indicator {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            background: #f59e0b;
-            color: white;
-            border-radius: 0.25rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-left: 1rem;
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
         }
 
-        .loading {
+        .loading-spinner {
             display: inline-block;
             width: 20px;
             height: 20px;
@@ -304,471 +438,815 @@
     </style>
 </head>
 <body>
-    <div class="admin-container">
-        <!-- Header -->
-        <div class="admin-header">
-            <h1 class="admin-title">
-                🛡️ Tournament Admin Tools
-                <span id="testModeIndicator" class="test-mode-indicator">TEST MODE</span>
-            </h1>
-            <p>Create and manage tournaments with on-chain escrow integration</p>
-            
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="header-content">
+            <h1 class="admin-title">🎮 WalletWars Control Center</h1>
             <div class="connection-status">
-                <div class="status-item">
+                <div class="status-indicator">
                     <span class="status-dot" id="walletStatus"></span>
-                    <span>Wallet: <span id="walletAddress">Not connected</span></span>
+                    <span id="walletText">Wallet</span>
                 </div>
-                <div class="status-item">
-                    <span class="status-dot" id="escrowStatus"></span>
-                    <span>Escrow: <span id="escrowStatusText">Not initialized</span></span>
-                </div>
-                <div class="status-item">
+                <div class="status-indicator">
                     <span class="status-dot" id="dbStatus"></span>
-                    <span>Database: <span id="dbStatusText">Checking...</span></span>
+                    <span>Database</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot" id="testModeStatus"></span>
+                    <span id="testModeText">Production</span>
                 </div>
             </div>
         </div>
+    </header>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
-            <div class="stat-box">
-                <div class="stat-value" id="totalTournaments">0</div>
-                <div class="stat-label">Total Created</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="mockTournaments">0</div>
-                <div class="stat-label">Mock (Test)</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="realTournaments">0</div>
-                <div class="stat-label">Real (On-chain)</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value" id="failedAttempts">0</div>
-                <div class="stat-label">Failed</div>
-            </div>
+    <!-- Main Container -->
+    <div class="admin-container">
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" onclick="switchTab('configuration')">
+                ⚙️ Configuration
+            </button>
+            <button class="tab-button" onclick="switchTab('variants')">
+                🎯 Tournament Variants
+            </button>
+            <button class="tab-button" onclick="switchTab('deployment')">
+                📅 Deployment Schedule
+            </button>
+            <button class="tab-button" onclick="switchTab('testing')">
+                🧪 Testing & Preview
+            </button>
+            <button class="tab-button" onclick="switchTab('monitoring')">
+                📊 Monitoring
+            </button>
         </div>
 
-        <!-- Main Grid -->
-        <div class="admin-grid">
-            <!-- Wallet Connection -->
-            <div class="admin-card">
-                <h3 class="card-title">
-                    <span>🔗</span>
-                    Wallet Connection
-                </h3>
+        <!-- Configuration Tab -->
+        <div id="configuration-tab" class="tab-content active">
+            <div class="control-panel">
+                <h2 class="panel-title">⚙️ Global Configuration</h2>
                 
-                <p style="margin-bottom: 1rem; color: #9ca3af;">
-                    Connect the automation wallet to create tournaments
-                </p>
-                
-                <div class="info-box">
-                    <strong>Automation Wallet:</strong><br>
-                    5D6ZYkQ5nAmZH1nm8u1rzbhVQ9vrQpXVe29qF9bcpEBJ
-                </div>
-                
-                <button id="connectWalletBtn" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
-                    Connect Phantom Wallet
-                </button>
-                
-                <div class="warning-box" style="margin-top: 1rem;">
-                    <strong>⚠️ Important:</strong> Connect with Admin Wallet
-                </div>
-            </div>
+                <div class="control-grid">
+                    <!-- Platform Fee -->
+                    <div class="control-group">
+                        <label class="control-label">Platform Fee %</label>
+                        <input type="number" class="control-input" id="platformFee" 
+                               min="0" max="100" step="1" value="10">
+                        <small style="color: #9ca3af; margin-top: 0.5rem; display: block;">
+                            Current: 10% → New: <span id="platformFeePreview">10%</span>
+                        </small>
+                    </div>
 
-            <!-- Quick Create Tournament -->
-            <div class="admin-card">
-                <h3 class="card-title">
-                    <span>🎮</span>
-                    Quick Create Tournament
-                </h3>
-                
-                <form id="quickCreateForm">
-                    <div class="form-group">
-                        <label class="form-label">Tournament Name</label>
-                        <input type="text" class="form-input" id="tournamentName" 
-                               placeholder="Bronze Pure Wallet Championship" required>
+                    <!-- Prize Pool Percentage -->
+                    <div class="control-group">
+                        <label class="control-label">Prize Pool %</label>
+                        <input type="number" class="control-input" id="prizePool" 
+                               min="0" max="100" step="1" value="85">
+                        <small style="color: #9ca3af; margin-top: 0.5rem; display: block;">
+                            Percentage of entry fees going to winners
+                        </small>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Tier</label>
-                        <select class="form-select" id="tier" required>
-                            <option value="0.01">Bronze (0.01 SOL)</option>
-                            <option value="0.05">Silver (0.05 SOL)</option>
-                            <option value="0.1">Gold (0.1 SOL)</option>
-                            <option value="0.25">Diamond (0.25 SOL)</option>
-                        </select>
+
+                    <!-- Registration Lead Time -->
+                    <div class="control-group">
+                        <label class="control-label">Registration Opens (Days Before)</label>
+                        <input type="number" class="control-input" id="registrationLead" 
+                               min="1" max="14" step="1" value="3">
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Trading Style</label>
-                        <select class="form-select" id="tradingStyle" required>
-                            <option value="pure_wallet">Pure Wallet</option>
-                            <option value="open_trading">Open Trading</option>
-                        </select>
+
+                    <!-- Test Mode Toggle -->
+                    <div class="control-group">
+                        <label class="control-label">Test Mode</label>
+                        <div class="toggle-group">
+                            <div class="toggle-switch" id="testModeToggle" onclick="toggleTestMode()"></div>
+                            <span id="testModeLabel">Disabled</span>
+                        </div>
+                        <small style="color: #9ca3af; margin-top: 0.5rem; display: block;">
+                            Enable to create mock tournaments
+                        </small>
                     </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Max Players</label>
-                        <input type="number" class="form-input" id="maxPlayers" 
-                               value="100" min="10" max="1000" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Start Date</label>
-                        <input type="datetime-local" class="form-input" id="startDate" required>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary" style="width: 100%;">
-                        Create Tournament
+                </div>
+
+                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="saveGlobalConfig()">
+                        💾 Save Configuration
                     </button>
-                </form>
+                    <button class="btn btn-secondary" onclick="resetGlobalConfig()">
+                        ↩️ Reset to Defaults
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Test Mode Controls -->
-        <div class="admin-card" style="margin-bottom: 2rem;">
-            <h3 class="card-title">
-                <span>🧪</span>
-                Test Mode Controls
-            </h3>
-            
+        <!-- Tournament Variants Tab -->
+        <div id="variants-tab" class="tab-content">
+            <div class="control-panel">
+                <h2 class="panel-title">🎯 Tournament Variants</h2>
+                
+                <!-- Quick Actions -->
+                <div style="margin-bottom: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="filterVariants('all')">
+                        All Variants
+                    </button>
+                    <button class="btn btn-secondary" onclick="filterVariants('pure_wallet')">
+                        Pure Wallet Only
+                    </button>
+                    <button class="btn btn-secondary" onclick="filterVariants('bronze')">
+                        Bronze Tier
+                    </button>
+                    <button class="btn btn-secondary" onclick="filterVariants('silver')">
+                        Silver Tier
+                    </button>
+                    <button class="btn btn-secondary" onclick="filterVariants('gold')">
+                        Gold Tier
+                    </button>
+                </div>
+
+                <!-- Variants List -->
+                <div id="variantsList">
+                    <!-- Will be populated dynamically -->
+                </div>
+
+                <!-- Add New Variant -->
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="showAddVariantForm()">
+                        ➕ Add New Variant
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Schedule Tab -->
+        <div id="deployment-tab" class="tab-content">
+            <div class="control-panel">
+                <h2 class="panel-title">📅 Deployment Schedule</h2>
+                
+                <div class="control-grid">
+                    <!-- Deployment Days -->
+                    <div class="control-group">
+                        <label class="control-label">Deployment Days</label>
+                        <div style="margin-top: 0.5rem;">
+                            <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="deployMonday" checked style="margin-right: 0.5rem;">
+                                Monday
+                            </label>
+                            <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="deployTuesday" style="margin-right: 0.5rem;">
+                                Tuesday
+                            </label>
+                            <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="deployWednesday" style="margin-right: 0.5rem;">
+                                Wednesday
+                            </label>
+                            <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="deployThursday" checked style="margin-right: 0.5rem;">
+                                Thursday
+                            </label>
+                            <label style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                                <input type="checkbox" id="deployFriday" style="margin-right: 0.5rem;">
+                                Friday
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Tournaments Per Day -->
+                    <div class="control-group">
+                        <label class="control-label">Tournaments Per Deployment Day</label>
+                        <select class="control-select" id="tournamentsPerDay">
+                            <option value="1">1 Tournament (Bootstrap)</option>
+                            <option value="2">2 Tournaments</option>
+                            <option value="3" selected>3 Tournaments</option>
+                            <option value="6">6 Tournaments (Full)</option>
+                        </select>
+                    </div>
+
+                    <!-- Deployment Time -->
+                    <div class="control-group">
+                        <label class="control-label">Deployment Time (UTC)</label>
+                        <input type="time" class="control-input" id="deploymentTime" value="14:00">
+                    </div>
+
+                    <!-- Advance Deployment -->
+                    <div class="control-group">
+                        <label class="control-label">Deploy Days in Advance</label>
+                        <input type="number" class="control-input" id="advanceDays" 
+                               min="7" max="30" value="21">
+                    </div>
+                </div>
+
+                <!-- Schedule Preview -->
+                <div class="preview-section">
+                    <h3 class="preview-title">📅 Deployment Preview</h3>
+                    <div id="schedulePreview">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="saveDeploymentSchedule()">
+                        💾 Save Schedule
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing & Preview Tab -->
+        <div id="testing-tab" class="tab-content">
+            <div class="control-panel">
+                <h2 class="panel-title">🧪 Testing & Preview</h2>
+                
+                <!-- Test Actions -->
+                <div class="control-grid">
+                    <div class="control-group">
+                        <label class="control-label">Quick Test Actions</label>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <button class="btn btn-secondary" onclick="createTestTournament()">
+                                🧪 Create Test Tournament
+                            </button>
+                            <button class="btn btn-secondary" onclick="previewNextDeployment()">
+                                👁️ Preview Next Deployment
+                            </button>
+                            <button class="btn btn-secondary" onclick="validateConfiguration()">
+                                ✅ Validate Configuration
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Configuration Export/Import</label>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <button class="btn btn-secondary" onclick="exportConfiguration()">
+                                📤 Export Configuration
+                            </button>
+                            <button class="btn btn-secondary" onclick="importConfiguration()">
+                                📥 Import Configuration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Results -->
+                <div id="testResults" style="margin-top: 2rem;">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitoring Tab -->
+        <div id="monitoring-tab" class="tab-content">
+            <!-- Statistics -->
             <div class="stats-grid">
-                <button class="btn btn-test" onclick="createTestTournament()">
-                    Create Test Tournament
-                </button>
-                <button class="btn btn-secondary" onclick="window.tournamentTestMode.showTestPanel()">
-                    Open Test Panel
-                </button>
-                <button class="btn btn-secondary" onclick="showDeploymentStats()">
-                    Show Stats
-                </button>
-                <button class="btn btn-danger" onclick="enableProductionMode()">
-                    Enable Production Mode
-                </button>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalTournaments">0</div>
+                    <div class="stat-label">Total Tournaments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeTournaments">0</div>
+                    <div class="stat-label">Active Now</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="upcomingTournaments">0</div>
+                    <div class="stat-label">Upcoming</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPlayers">0</div>
+                    <div class="stat-label">Total Players</div>
+                </div>
             </div>
-            
-            <div class="info-box" style="margin-top: 1rem;">
-                <strong>Current Mode:</strong> <span id="currentMode">TEST MODE</span><br>
-                <strong>One Real Test:</strong> <span id="oneRealTestStatus">Not used</span>
-            </div>
-        </div>
 
-        <!-- Deployment Actions -->
-        <div class="admin-card">
-            <h3 class="card-title">
-                <span>🚀</span>
-                Deployment Actions
-            </h3>
-            
-            <div style="display: grid; gap: 1rem;">
-                <button class="btn btn-primary" onclick="deployUpcomingTournaments()">
-                    Deploy Upcoming Tournaments
-                </button>
-                <button class="btn btn-secondary" onclick="checkExistingTournaments()">
-                    Check Existing Tournaments
-                </button>
-                <button class="btn btn-secondary" onclick="clearConsole()">
-                    Clear Console
-                </button>
-            </div>
-        </div>
-
-        <!-- Console Output -->
-        <div class="admin-card" style="grid-column: 1 / -1;">
-            <h3 class="card-title">
-                <span>💻</span>
-                Console Output
-            </h3>
-            <div class="output-console" id="consoleOutput">
-                <div class="console-line console-info">🚀 Tournament Admin Tools initialized</div>
-                <div class="console-line console-warning">🧪 Test mode is active - no real blockchain transactions</div>
+            <!-- Recent Activity -->
+            <div class="control-panel">
+                <h2 class="panel-title">📊 Recent Activity</h2>
+                <div id="recentActivity">
+                    <!-- Will be populated dynamically -->
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global variables
+        // Global state
+        let currentConfig = {};
         let deploymentManager = null;
-        let connectedWallet = null;
-        
-        // Console logging
-        function log(message, type = 'info') {
-            const console = document.getElementById('consoleOutput');
-            const timestamp = new Date().toLocaleTimeString();
-            const typeClass = `console-${type}`;
-            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+        let isDirty = false;
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Admin Control Center initializing...');
             
-            const line = document.createElement('div');
-            line.className = `console-line ${typeClass}`;
-            line.textContent = `[${timestamp}] ${icon} ${message}`;
+            // Load current configuration
+            loadCurrentConfig();
             
-            console.appendChild(line);
-            console.scrollTop = console.scrollHeight;
-        }
-        
-        // Clear console
-        function clearConsole() {
-            document.getElementById('consoleOutput').innerHTML = '<div class="console-line console-info">Console cleared</div>';
-        }
-        
-        // Update UI elements
-        function updateStatus(element, connected) {
-            const dot = document.getElementById(element);
-            if (connected) {
-                dot.classList.add('connected');
-            } else {
-                dot.classList.remove('connected');
-            }
-        }
-        
-        // Update statistics
-        function updateStats() {
-            if (deploymentManager) {
-                const stats = deploymentManager.getStats();
-                document.getElementById('totalTournaments').textContent = stats.tournamentsCreated;
-                document.getElementById('mockTournaments').textContent = stats.mockTournamentsCreated;
-                document.getElementById('realTournaments').textContent = stats.realTournamentsCreated;
-                document.getElementById('failedAttempts').textContent = stats.failedAttempts;
-            }
-        }
-        
-        // Connect wallet
-        async function connectWallet() {
-            log('Connecting to Phantom wallet...');
-            
-            try {
-                const provider = window.phantom?.solana;
-                
-                if (!provider) {
-                    throw new Error('Phantom wallet not found. Please install it.');
-                }
-                
-                const response = await provider.connect();
-                connectedWallet = provider;
-                
-                const address = response.publicKey.toString();
-                document.getElementById('walletAddress').textContent = address.substring(0, 8) + '...';
-                updateStatus('walletStatus', true);
-                
-                log(`Wallet connected: ${address}`, 'success');
-                
-                // Initialize deployment manager
-                await initializeDeploymentManager();
-                
-            } catch (error) {
-                log(`Failed to connect wallet: ${error.message}`, 'error');
-                updateStatus('walletStatus', false);
-            }
-        }
-        
-        // Initialize deployment manager
-        async function initializeDeploymentManager() {
-            log('Initializing deployment manager...');
-            
-            try {
+            // Initialize deployment manager
+            if (window.EnhancedTournamentDeploymentManager) {
                 deploymentManager = new window.EnhancedTournamentDeploymentManager();
-                
-                // Initialize escrow
-                const escrowReady = await deploymentManager.initializeEscrow(connectedWallet);
-                
-                if (escrowReady) {
-                    updateStatus('escrowStatus', true);
-                    document.getElementById('escrowStatusText').textContent = 'Ready';
-                    log('Escrow integration ready', 'success');
-                } else {
-                    updateStatus('escrowStatus', false);
-                    document.getElementById('escrowStatusText').textContent = 'Failed';
-                    log('Escrow integration failed', 'error');
+            }
+            
+            // Check connections
+            checkConnections();
+            
+            // Load initial data
+            loadVariants();
+            updateSchedulePreview();
+            loadMonitoringData();
+            
+            // Set up auto-save reminder
+            window.addEventListener('beforeunload', (e) => {
+                if (isDirty) {
+                    e.preventDefault();
+                    e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
                 }
+            });
+        });
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // Mark button as active
+            event.target.classList.add('active');
+        }
+
+        // Load current configuration
+        function loadCurrentConfig() {
+            if (window.TOURNAMENT_CONFIG) {
+                currentConfig = JSON.parse(JSON.stringify(window.TOURNAMENT_CONFIG));
                 
-                updateStats();
+                // Populate form fields
+                document.getElementById('platformFee').value = currentConfig.escrow.platformFeePercentage;
+                document.getElementById('prizePool').value = currentConfig.weeklyTiers.bronze.prizePoolPercentage;
+                document.getElementById('registrationLead').value = 3;
                 
-            } catch (error) {
-                log(`Failed to initialize deployment manager: ${error.message}`, 'error');
+                // Update test mode toggle
+                const isTestMode = window.tournamentTestMode && window.tournamentTestMode.isEnabled();
+                updateTestModeUI(isTestMode);
             }
         }
-        
+
+        // Check connections
+        async function checkConnections() {
+            // Check wallet
+            const walletConnected = window.phantom?.solana?.isConnected;
+            updateStatus('walletStatus', walletConnected);
+            document.getElementById('walletText').textContent = walletConnected ? 'Connected' : 'Not Connected';
+            
+            // Check database
+            if (window.walletWarsAPI) {
+                const dbConnected = await window.walletWarsAPI.testConnection();
+                updateStatus('dbStatus', dbConnected);
+            }
+            
+            // Check test mode
+            const isTestMode = window.tournamentTestMode && window.tournamentTestMode.isEnabled();
+            updateStatus('testModeStatus', !isTestMode);
+            document.getElementById('testModeText').textContent = isTestMode ? 'Test Mode' : 'Production';
+        }
+
+        // Update status indicator
+        function updateStatus(elementId, isActive) {
+            const element = document.getElementById(elementId);
+            if (isActive) {
+                element.classList.add('active');
+            } else {
+                element.classList.remove('active');
+            }
+        }
+
+        // Toggle test mode
+        function toggleTestMode() {
+            const toggle = document.getElementById('testModeToggle');
+            const isActive = toggle.classList.contains('active');
+            
+            if (!isActive) {
+                // Enable test mode
+                if (window.tournamentTestMode) {
+                    window.tournamentTestMode.enable();
+                }
+                updateTestModeUI(true);
+            } else {
+                // Disable test mode
+                if (window.tournamentTestMode) {
+                    window.tournamentTestMode.disable();
+                }
+                updateTestModeUI(false);
+            }
+            
+            checkConnections();
+        }
+
+        // Update test mode UI
+        function updateTestModeUI(isEnabled) {
+            const toggle = document.getElementById('testModeToggle');
+            const label = document.getElementById('testModeLabel');
+            
+            if (isEnabled) {
+                toggle.classList.add('active');
+                label.textContent = 'Enabled';
+            } else {
+                toggle.classList.remove('active');
+                label.textContent = 'Disabled';
+            }
+        }
+
+        // Save global configuration
+        async function saveGlobalConfig() {
+            const platformFee = parseInt(document.getElementById('platformFee').value);
+            const prizePool = parseInt(document.getElementById('prizePool').value);
+            const registrationLead = parseInt(document.getElementById('registrationLead').value);
+            
+            // Update configuration
+            currentConfig.escrow.platformFeePercentage = platformFee;
+            
+            // Update all tiers with new prize pool
+            Object.keys(currentConfig.weeklyTiers).forEach(tier => {
+                currentConfig.weeklyTiers[tier].prizePoolPercentage = prizePool;
+            });
+            
+            // Update tournament variants
+            currentConfig.tournamentVariants.forEach(variant => {
+                variant.prizePoolPercentage = prizePool;
+            });
+            
+            // Apply to window config
+            window.TOURNAMENT_CONFIG = currentConfig;
+            
+            showAlert('Configuration saved successfully!', 'success');
+            isDirty = false;
+        }
+
+        // Reset global configuration
+        function resetGlobalConfig() {
+            if (confirm('Reset all configuration to defaults?')) {
+                location.reload();
+            }
+        }
+
+        // Load tournament variants
+        function loadVariants() {
+            const container = document.getElementById('variantsList');
+            container.innerHTML = '';
+            
+            currentConfig.tournamentVariants.forEach((variant, index) => {
+                const variantCard = createVariantCard(variant, index);
+                container.appendChild(variantCard);
+            });
+        }
+
+        // Create variant card
+        function createVariantCard(variant, index) {
+            const card = document.createElement('div');
+            card.className = 'variant-card';
+            card.innerHTML = `
+                <div class="variant-header">
+                    <h3 class="variant-name">${variant.name}</h3>
+                    <div class="toggle-group">
+                        <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
+                             onclick="toggleVariant(${index})"></div>
+                    </div>
+                </div>
+                <div class="variant-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Entry Fee</span>
+                        <span class="detail-value">${variant.entryFee} SOL</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Max Players</span>
+                        <input type="number" class="control-input" value="${variant.maxParticipants}" 
+                               min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Trading Style</span>
+                        <span class="detail-value">${variant.tradingStyle.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Duration</span>
+                        <span class="detail-value">${variant.duration} days</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // Toggle variant
+        function toggleVariant(index) {
+            const variant = currentConfig.tournamentVariants[index];
+            variant.enabled = variant.enabled === false ? true : false;
+            loadVariants();
+            isDirty = true;
+        }
+
+        // Update variant capacity
+        function updateVariantCapacity(index, value) {
+            currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
+            isDirty = true;
+        }
+
+        // Filter variants
+        function filterVariants(filter) {
+            const cards = document.querySelectorAll('.variant-card');
+            cards.forEach(card => {
+                const name = card.querySelector('.variant-name').textContent.toLowerCase();
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else if (filter === 'pure_wallet' && name.includes('pure wallet')) {
+                    card.style.display = 'block';
+                } else if (filter === 'bronze' && name.includes('bronze')) {
+                    card.style.display = 'block';
+                } else if (filter === 'silver' && name.includes('silver')) {
+                    card.style.display = 'block';
+                } else if (filter === 'gold' && name.includes('gold')) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Update schedule preview
+        function updateSchedulePreview() {
+            const container = document.getElementById('schedulePreview');
+            const tournamentsPerDay = parseInt(document.getElementById('tournamentsPerDay').value);
+            
+            // Get selected days
+            const selectedDays = [];
+            if (document.getElementById('deployMonday').checked) selectedDays.push('Monday');
+            if (document.getElementById('deployTuesday').checked) selectedDays.push('Tuesday');
+            if (document.getElementById('deployWednesday').checked) selectedDays.push('Wednesday');
+            if (document.getElementById('deployThursday').checked) selectedDays.push('Thursday');
+            if (document.getElementById('deployFriday').checked) selectedDays.push('Friday');
+            
+            const totalPerWeek = selectedDays.length * tournamentsPerDay;
+            
+            container.innerHTML = `
+                <div class="stats-grid" style="margin-bottom: 1rem;">
+                    <div class="detail-item">
+                        <span class="detail-label">Deployments per week</span>
+                        <span class="detail-value">${selectedDays.length}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Tournaments per deployment</span>
+                        <span class="detail-value">${tournamentsPerDay}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total tournaments per week</span>
+                        <span class="detail-value">${totalPerWeek}</span>
+                    </div>
+                </div>
+                <div>
+                    <strong>Deployment Days:</strong> ${selectedDays.join(', ') || 'None selected'}
+                </div>
+            `;
+        }
+
+        // Save deployment schedule
+        function saveDeploymentSchedule() {
+            // Get selected days
+            const days = [];
+            if (document.getElementById('deployMonday').checked) days.push('monday');
+            if (document.getElementById('deployTuesday').checked) days.push('tuesday');
+            if (document.getElementById('deployWednesday').checked) days.push('wednesday');
+            if (document.getElementById('deployThursday').checked) days.push('thursday');
+            if (document.getElementById('deployFriday').checked) days.push('friday');
+            
+            const time = document.getElementById('deploymentTime').value + ':00';
+            const advanceDays = parseInt(document.getElementById('advanceDays').value);
+            const maxPerDate = parseInt(document.getElementById('tournamentsPerDay').value);
+            
+            // Update configuration
+            currentConfig.deploymentDays = days;
+            currentConfig.deploymentTime = time;
+            currentConfig.timing.advanceDeploymentDays = advanceDays;
+            currentConfig.timing.maxTournamentsPerDate = maxPerDate;
+            
+            // Apply to window config
+            window.TOURNAMENT_CONFIG = currentConfig;
+            
+            showAlert('Deployment schedule saved!', 'success');
+            isDirty = false;
+        }
+
         // Create test tournament
         async function createTestTournament() {
             if (!deploymentManager) {
-                log('Please connect wallet first', 'error');
+                showAlert('Deployment manager not initialized', 'error');
                 return;
             }
             
-            log('Creating test tournament...');
+            showAlert('Creating test tournament...', 'info');
             
             try {
                 const result = await deploymentManager.createTestTournament();
-                
                 if (result) {
-                    log(`Test tournament created: ${result.id}`, 'success');
-                    updateStats();
+                    showAlert('Test tournament created successfully!', 'success');
                 } else {
-                    log('Failed to create test tournament', 'error');
+                    showAlert('Failed to create test tournament', 'error');
                 }
             } catch (error) {
-                log(`Error: ${error.message}`, 'error');
+                showAlert(`Error: ${error.message}`, 'error');
             }
         }
-        
-        // Deploy upcoming tournaments
-        async function deployUpcomingTournaments() {
-            if (!deploymentManager) {
-                log('Please connect wallet first', 'error');
-                return;
-            }
+
+        // Preview next deployment
+        async function previewNextDeployment() {
+            const container = document.getElementById('testResults');
+            container.innerHTML = '<div class="loading-spinner"></div> Calculating next deployment...';
             
-            const testMode = window.tournamentTestMode.isEnabled();
-            if (testMode) {
-                const confirm = window.confirm(
-                    'Deploy tournaments in TEST MODE?\n\n' +
-                    'This will create MOCK tournaments only.\n' +
-                    'No real blockchain transactions will occur.'
-                );
-                
-                if (!confirm) return;
-            }
+            // Get next deployment dates
+            const dates = getUpcomingDeploymentDates();
+            const enabledVariants = currentConfig.tournamentVariants.filter(v => v.enabled !== false);
             
-            log('Deploying upcoming tournaments...');
-            
-            try {
-                await deploymentManager.deployUpcomingTournaments();
-                updateStats();
-            } catch (error) {
-                log(`Deployment error: ${error.message}`, 'error');
-            }
+            container.innerHTML = `
+                <div class="preview-section">
+                    <h3 class="preview-title">Next Deployment Preview</h3>
+                    <p><strong>Next deployment:</strong> ${dates[0] ? dates[0].toLocaleString() : 'No upcoming deployments'}</p>
+                    <p><strong>Tournaments to create:</strong> ${enabledVariants.length}</p>
+                    <div style="margin-top: 1rem;">
+                        ${enabledVariants.map(v => `
+                            <div style="margin-bottom: 0.5rem;">
+                                ✅ ${v.name} - ${v.entryFee} SOL - Max ${v.maxParticipants} players
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
         }
-        
-        // Check existing tournaments
-        async function checkExistingTournaments() {
-            log('Checking existing tournaments...');
+
+        // Validate configuration
+        function validateConfiguration() {
+            const container = document.getElementById('testResults');
+            const issues = [];
+            
+            // Check deployment days
+            const selectedDays = [];
+            if (document.getElementById('deployMonday').checked) selectedDays.push('Monday');
+            if (document.getElementById('deployTuesday').checked) selectedDays.push('Tuesday');
+            if (document.getElementById('deployWednesday').checked) selectedDays.push('Wednesday');
+            if (document.getElementById('deployThursday').checked) selectedDays.push('Thursday');
+            if (document.getElementById('deployFriday').checked) selectedDays.push('Friday');
+            
+            if (selectedDays.length === 0) {
+                issues.push('❌ No deployment days selected');
+            }
+            
+            // Check enabled variants
+            const enabledVariants = currentConfig.tournamentVariants.filter(v => v.enabled !== false);
+            if (enabledVariants.length === 0) {
+                issues.push('❌ No tournament variants enabled');
+            }
+            
+            // Check platform fee
+            const platformFee = parseInt(document.getElementById('platformFee').value);
+            if (platformFee < 0 || platformFee > 100) {
+                issues.push('❌ Platform fee must be between 0-100%');
+            }
+            
+            container.innerHTML = `
+                <div class="preview-section">
+                    <h3 class="preview-title">Configuration Validation</h3>
+                    ${issues.length === 0 ? 
+                        '<div class="alert alert-success">✅ Configuration is valid!</div>' :
+                        `<div class="alert alert-warning">
+                            <strong>Issues found:</strong><br>
+                            ${issues.join('<br>')}
+                        </div>`
+                    }
+                </div>
+            `;
+        }
+
+        // Load monitoring data
+        async function loadMonitoringData() {
+            if (!window.walletWarsAPI) return;
             
             try {
-                const result = await window.walletWarsAPI.getUpcomingTournaments(10);
-                
+                // Get tournaments
+                const result = await window.walletWarsAPI.getUpcomingTournaments(50);
                 if (result.success) {
-                    log(`Found ${result.tournaments.length} upcoming tournaments:`, 'success');
+                    const tournaments = result.tournaments;
                     
-                    result.tournaments.forEach(t => {
-                        const metadata = t.deployment_metadata || {};
-                        const status = metadata.tournamentPDA ? '✅ On-chain' : '⚠️ DB only';
-                        log(`  • ${t.tournament_name} - ${t.status} ${status}`);
-                    });
-                } else {
-                    log('Failed to load tournaments', 'error');
+                    // Count by status
+                    const active = tournaments.filter(t => t.status === 'active').length;
+                    const upcoming = tournaments.filter(t => t.status === 'upcoming' || t.status === 'registering').length;
+                    
+                    document.getElementById('totalTournaments').textContent = tournaments.length;
+                    document.getElementById('activeTournaments').textContent = active;
+                    document.getElementById('upcomingTournaments').textContent = upcoming;
+                    
+                    // Recent activity
+                    const recentContainer = document.getElementById('recentActivity');
+                    const recent = tournaments.slice(0, 5);
+                    
+                    recentContainer.innerHTML = recent.map(t => `
+                        <div style="padding: 1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.1);">
+                            <strong>${t.tournament_name}</strong><br>
+                            <small>Status: ${t.status} | Players: ${t.participant_count || 0}</small>
+                        </div>
+                    `).join('');
                 }
             } catch (error) {
-                log(`Error: ${error.message}`, 'error');
+                console.error('Failed to load monitoring data:', error);
             }
         }
-        
-        // Show deployment stats
-        function showDeploymentStats() {
-            if (!deploymentManager) {
-                log('Deployment manager not initialized', 'error');
-                return;
-            }
-            
-            const stats = deploymentManager.getStats();
-            log('=== Deployment Statistics ===', 'info');
-            log(`Total Created: ${stats.tournamentsCreated}`, 'info');
-            log(`Mock Tournaments: ${stats.mockTournamentsCreated}`, 'info');
-            log(`Real Tournaments: ${stats.realTournamentsCreated}`, 'info');
-            log(`Failed Attempts: ${stats.failedAttempts}`, 'info');
-            log(`Test Mode: ${stats.testModeActive ? 'ENABLED' : 'DISABLED'}`, stats.testModeActive ? 'warning' : 'success');
-            log(`Escrow: ${stats.escrowInitialized ? 'Ready' : 'Not initialized'}`, stats.escrowInitialized ? 'success' : 'warning');
-        }
-        
-        // Enable production mode
-        function enableProductionMode() {
-            window.tournamentTestMode.disable();
-            document.getElementById('testModeIndicator').style.display = 'none';
-            document.getElementById('currentMode').textContent = 'PRODUCTION MODE';
-            updateTestModeStatus();
-        }
-        
-        // Update test mode status
-        function updateTestModeStatus() {
-            const testMode = window.tournamentTestMode;
-            const isEnabled = testMode.isEnabled();
-            
-            document.getElementById('testModeIndicator').style.display = isEnabled ? 'inline-block' : 'none';
-            document.getElementById('currentMode').textContent = isEnabled ? 'TEST MODE' : 'PRODUCTION MODE';
-            
-            const config = testMode.config;
-            if (config.realTestUsed) {
-                document.getElementById('oneRealTestStatus').textContent = `Used (${config.realTestTournamentId})`;
-            } else {
-                document.getElementById('oneRealTestStatus').textContent = 'Available';
-            }
-        }
-        
-        // Handle quick create form
-        document.getElementById('quickCreateForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            if (!deploymentManager) {
-                log('Please connect wallet first', 'error');
-                return;
-            }
-            
-            const formData = {
-                name: document.getElementById('tournamentName').value,
-                entryFee: parseFloat(document.getElementById('tier').value),
-                tradingStyle: document.getElementById('tradingStyle').value,
-                maxParticipants: parseInt(document.getElementById('maxPlayers').value),
-                startDate: new Date(document.getElementById('startDate').value)
+
+        // Export configuration
+        function exportConfiguration() {
+            const config = {
+                ...currentConfig,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
             };
             
-            log('Creating tournament: ' + formData.name);
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `walletwars-config-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
             
-            try {
-                const result = await deploymentManager.createManualTournament(formData);
+            showAlert('Configuration exported!', 'success');
+        }
+
+        // Import configuration
+        function importConfiguration() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
                 
-                if (result) {
-                    log(`Tournament created successfully: ${result.id}`, 'success');
-                    updateStats();
-                    e.target.reset();
-                } else {
-                    log('Failed to create tournament', 'error');
+                try {
+                    const text = await file.text();
+                    const config = JSON.parse(text);
+                    
+                    if (confirm('Import this configuration? This will overwrite current settings.')) {
+                        currentConfig = config;
+                        window.TOURNAMENT_CONFIG = config;
+                        loadCurrentConfig();
+                        loadVariants();
+                        showAlert('Configuration imported successfully!', 'success');
+                    }
+                } catch (error) {
+                    showAlert('Failed to import configuration: ' + error.message, 'error');
                 }
-            } catch (error) {
-                log(`Error: ${error.message}`, 'error');
+            };
+            input.click();
+        }
+
+        // Get upcoming deployment dates
+        function getUpcomingDeploymentDates() {
+            const dates = [];
+            const today = new Date();
+            const deploymentDays = currentConfig.deploymentDays || ['monday', 'thursday'];
+            const advanceDays = currentConfig.timing?.advanceDeploymentDays || 21;
+            
+            for (let i = 0; i < advanceDays; i++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() + i);
+                
+                const dayName = checkDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+                
+                if (deploymentDays.includes(dayName)) {
+                    dates.push(checkDate);
+                }
             }
+            
+            return dates;
+        }
+
+        // Show alert
+        function showAlert(message, type = 'info') {
+            // Simple alert implementation - you can enhance this
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // You could add a toast notification system here
+        }
+
+        // Update listeners
+        document.getElementById('platformFee').addEventListener('input', (e) => {
+            document.getElementById('platformFeePreview').textContent = e.target.value + '%';
+            isDirty = true;
         });
+
+        document.getElementById('tournamentsPerDay').addEventListener('change', updateSchedulePreview);
         
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', async () => {
-            log('Tournament Admin Tools loaded');
-            
-            // Check database connection
-            try {
-                const dbConnected = await window.walletWarsAPI.testConnection();
-                updateStatus('dbStatus', dbConnected);
-                document.getElementById('dbStatusText').textContent = dbConnected ? 'Connected' : 'Failed';
-                
-                if (dbConnected) {
-                    log('Database connection verified', 'success');
-                } else {
-                    log('Database connection failed', 'error');
-                }
-            } catch (error) {
-                log('Database check failed: ' + error.message, 'error');
-                updateStatus('dbStatus', false);
-            }
-            
-            // Update test mode status
-            updateTestModeStatus();
-            
-            // Connect wallet button
-            document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
-            
-            // Set default start date to tomorrow
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(14, 0, 0, 0); // 2 PM
-            document.getElementById('startDate').value = tomorrow.toISOString().slice(0, 16);
+        // Deployment day checkboxes
+        ['deployMonday', 'deployTuesday', 'deployWednesday', 'deployThursday', 'deployFriday'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                updateSchedulePreview();
+                isDirty = true;
+            });
         });
     </script>
 </body>
