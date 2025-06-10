@@ -13,11 +13,8 @@ class SupabaseAdminAuth {
             '6PoB9i9kpumDze7EhiL3CicAuEPxDAzrTVzHYot9sx9h'
         ];
         
-        // Get Supabase client
-        this.supabase = window.supabase.createClient(
-            window.SUPABASE_URL,
-            window.SUPABASE_ANON_KEY
-        );
+         // Use the existing Supabase client from walletwars-api.js
+        this.supabase = window.walletWarsAPI.supabase;
         
         this.init();
     }
