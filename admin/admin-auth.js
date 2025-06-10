@@ -168,6 +168,7 @@ class SupabaseAdminAuth {
                     
                     if (result.success) {
                         modal.remove();
+                        document.body.style.display = 'block'; // Make sure body is visible
                         resolve(true);
                     } else {
                         errorDiv.textContent = result.error || 'Authentication failed';
@@ -293,8 +294,11 @@ class SupabaseAdminAuth {
             try {
                 await this.showPinModal(walletAddress);
                 
-                // Success - reload page
-                location.reload();
+                // Success - DON'T reload page
+                // location.reload();  // Removed this line!
+
+                // Instead, just remove the modal
+                console.log('✅ Authentication complete');
                 
             } catch (error) {
                 console.log('Authentication cancelled');
