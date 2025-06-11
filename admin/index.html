@@ -721,14 +721,246 @@
     </div>
 
     <script>
+        // Add this persistence helper at the top of your script section
+class ConfigPersistence {
+    static async saveToDatabase(config) {
+        try {
+            const { error } = await window.walletWarsAPI.supabase
+                .from('admin_config')
+                .upsert({
+                    key: 'tournament_config',
+                    value: config,
+                    updated_by: window.adminAuth.getCurrentWallet ? window.adminAuth.getCurrentWallet() : 'admin',
+                    updated_at: new Date().toISOString()
+                });
+                
+            if (error) throw error;
+            console.log('✅ Configuration saved to database');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ Failed to save configuration:', error);
+            return { success: false, error: error.message };
+        }
+    }
+    
+    static async loadFromDatabase() {
+        try {
+            const { data, error } = await window.walletWarsAPI.supabase
+                .from('admin_config')
+                .select('value')
+                .eq('key', 'tournament_config')
+                .single();
+                
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log('📋 No saved configuration found, using defaults');
+                    return null;
+                }
+                throw error;
+            }
+            
+            console.log('✅ Configuration loaded from database');
+            return data.value;
+        } catch (error) {
+            console.error('❌ Failed to load configuration:', error);
+            return null;
+        }
+    }
+}
+
+// Update the saveGlobalConfig function
+async function saveGlobalConfig() {
+    const platformFee = parseInt(document.getElementById('platformFee').value);
+    const prizePool = parseInt(document.getElementById('prizePool').value);
+    const registrationLead = parseInt(document.getElementById('registrationLead').value);
+    
+    // Update configuration
+    currentConfig.escrow.platformFeePercentage = platformFee;
+    
+    // Update all tiers with new prize pool
+    Object.keys(currentConfig.weeklyTiers).forEach(tier => {
+        currentConfig.weeklyTiers[tier].prizePoolPercentage = prizePool;
+    });
+    
+    // Update tournament variants
+    currentConfig.tournamentVariants.forEach(variant => {
+        variant.prizePoolPercentage = prizePool;
+    });
+    
+    // Apply to window config
+    window.TOURNAMENT_CONFIG = currentConfig;
+    
+    // Save to database
+    const result = await ConfigPersistence.saveToDatabase(currentConfig);
+    
+    if (result.success) {
+        showAlert('Configuration saved successfully and permanently!', 'success');
+        isDirty = false;
+    } else {
+        showAlert('Configuration saved locally but failed to save to database: ' + result.error, 'warning');
+    }
+}
+
+// Update the saveDeploymentSchedule function
+async function saveDeploymentSchedule() {
+    // Get selected days
+    const days = [];
+    if (document.getElementById('deployMonday').checked) days.push('monday');
+    if (document.getElementById('deployTuesday').checked) days.push('tuesday');
+    if (document.getElementById('deployWednesday').checked) days.push('wednesday');
+    if (document.getElementById('deployThursday').checked) days.push('thursday');
+    if (document.getElementById('deployFriday').checked) days.push('friday');
+    
+    const time = document.getElementById('deploymentTime').value + ':00';
+    const advanceDays = parseInt(document.getElementById('advanceDays').value);
+    const maxPerDate = parseInt(document.getElementById('tournamentsPerDay').value);
+    
+    // Update configuration
+    currentConfig.deploymentDays = days;
+    currentConfig.deploymentTime = time;
+    currentConfig.timing.advanceDeploymentDays = advanceDays;
+    currentConfig.timing.maxTournamentsPerDate = maxPerDate;
+    
+    // Apply to window config
+    window.TOURNAMENT_CONFIG = currentConfig;
+    
+    // Save to database
+    const result = await ConfigPersistence.saveToDatabase(currentConfig);
+    
+    if (result.success) {
+        showAlert('Deployment schedule saved permanently!', 'success');
+        isDirty = false;
+    } else {
+        showAlert('Schedule saved locally but failed to save to database: ' + result.error, 'warning');
+    }
+}
+
+// Update the DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Admin Control Center initializing...');
+    
+    // Load saved configuration from database FIRST
+    const savedConfig = await ConfigPersistence.loadFromDatabase();
+    if (savedConfig) {
+        // Apply saved config to window.TOURNAMENT_CONFIG
+        window.TOURNAMENT_CONFIG = { ...window.TOURNAMENT_CONFIG, ...savedConfig };
+        currentConfig = savedConfig;
+        console.log('📋 Applied saved configuration from database');
+    } else {
+        // Load current configuration from window
+        loadCurrentConfig();
+    }
+    
+    // Update UI with loaded values
+    updateUIFromConfig();
+    
+    // Initialize deployment manager
+    if (window.EnhancedTournamentDeploymentManager) {
+        deploymentManager = new window.EnhancedTournamentDeploymentManager();
+    }
+    
+    // Check connections
+    checkConnections();
+    
+    // Load initial data
+    loadVariants();
+    updateSchedulePreview();
+    loadMonitoringData();
+    
+    // Set up auto-save reminder
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        }
+    });
+});
+
+// Add new function to update UI from config
+function updateUIFromConfig() {
+    // Update all form fields with current config values
+    if (currentConfig.escrow) {
+        document.getElementById('platformFee').value = currentConfig.escrow.platformFeePercentage;
+    }
+    
+    if (currentConfig.weeklyTiers && currentConfig.weeklyTiers.bronze) {
+        document.getElementById('prizePool').value = currentConfig.weeklyTiers.bronze.prizePoolPercentage;
+    }
+    
+    if (currentConfig.timing) {
+        document.getElementById('tournamentsPerDay').value = currentConfig.timing.maxTournamentsPerDate || 6;
+        document.getElementById('advanceDays').value = currentConfig.timing.advanceDeploymentDays || 21;
+    }
+    
+    if (currentConfig.deploymentTime) {
+        document.getElementById('deploymentTime').value = currentConfig.deploymentTime.substring(0, 5);
+    }
+    
+    if (currentConfig.deploymentDays) {
+        // Reset all checkboxes first
+        ['deployMonday', 'deployTuesday', 'deployWednesday', 'deployThursday', 'deployFriday'].forEach(id => {
+            document.getElementById(id).checked = false;
+        });
+        
+        // Check the saved days
+        currentConfig.deploymentDays.forEach(day => {
+            const checkboxId = 'deploy' + day.charAt(0).toUpperCase() + day.slice(1);
+            const checkbox = document.getElementById(checkboxId);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
+    
+    // Update test mode
+    const isTestMode = window.tournamentTestMode && window.tournamentTestMode.isEnabled();
+    updateTestModeUI(isTestMode);
+    
+    // Update preview
+    updateSchedulePreview();
+}
+
+// Add function to handle variant changes
+async function saveVariantChanges() {
+    // Apply to window config
+    window.TOURNAMENT_CONFIG = currentConfig;
+    
+    // Save to database
+    const result = await ConfigPersistence.saveToDatabase(currentConfig);
+    
+    if (result.success) {
+        showAlert('Tournament variants saved permanently!', 'success');
+        isDirty = false;
+    } else {
+        showAlert('Failed to save variants to database: ' + result.error, 'error');
+    }
+}
+
+// Update the toggleVariant function to auto-save
+function toggleVariant(index) {
+    const variant = currentConfig.tournamentVariants[index];
+    variant.enabled = variant.enabled === false ? true : false;
+    loadVariants();
+    isDirty = true;
+    
+    // Auto-save variant changes
+    saveVariantChanges();
+}
+
+// Update the updateVariantCapacity function to auto-save
+function updateVariantCapacity(index, value) {
+    currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
+    isDirty = true;
+    
+    // Debounce auto-save (wait 1 second after typing stops)
+    clearTimeout(window.capacitySaveTimeout);
+    window.capacitySaveTimeout = setTimeout(() => {
+        saveVariantChanges();
+    }, 1000);
+}
+
         // Global state
         let currentConfig = {};
         let deploymentManager = null;
         let isDirty = false;
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Admin Control Center initializing...');
             
             // Load current configuration
             loadCurrentConfig();
@@ -854,12 +1086,6 @@
                 label.textContent = 'Disabled';
             }
         }
-
-        // Save global configuration
-        async function saveGlobalConfig() {
-            const platformFee = parseInt(document.getElementById('platformFee').value);
-            const prizePool = parseInt(document.getElementById('prizePool').value);
-            const registrationLead = parseInt(document.getElementById('registrationLead').value);
             
             // Update configuration
             currentConfig.escrow.platformFeePercentage = platformFee;
