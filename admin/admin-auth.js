@@ -273,37 +273,43 @@ class SupabaseAdminAuth {
      * Connect admin wallet
      */
     async connectAdminWallet() {
+    try {
+        const provider = window.phantom?.solana || window.solana;
+        
+        if (!provider) {
+            alert('Please install Phantom wallet');
+            return;
+        }
+        
+        const response = await provider.connect();
+        const walletAddress = response.publicKey.toString();
+        
+        if (!this.authorizedWallets.includes(walletAddress)) {
+            alert('❌ This wallet is not authorized for admin access');
+            return;
+        }
+        
+        // Show PIN modal
         try {
-            const provider = window.phantom?.solana || window.solana;
+            await this.showPinModal(walletAddress);
             
-            if (!provider) {
-                alert('Please install Phantom wallet');
-                return;
-            }
+            // Success - authentication is complete
+            console.log('✅ Authentication complete');
             
-            const response = await provider.connect();
-            const walletAddress = response.publicKey.toString();
+            // Remove any existing auth modals
+            const existingModals = document.querySelectorAll('div[style*="position: fixed"]');
+            existingModals.forEach(modal => modal.remove());
             
-            // Check if wallet is in authorized list
-            if (!this.authorizedWallets.includes(walletAddress)) {
-                alert('❌ This wallet is not authorized for admin access');
-                return;
-            }
+            // Show the page content
+            document.body.style.display = 'block';
             
-            // Show PIN modal
-            try {
-                await this.showPinModal(walletAddress);
-                
-                // Success - DON'T reload page
-                // location.reload();  // Removed this line!
-
-                // Instead, just remove the modal
-                console.log('✅ Authentication complete');
-                
-            } catch (error) {
-                console.log('Authentication cancelled');
-            }
+            // Update the local authorized state
+            this.authorized = true;
             
+        } catch (error) {
+            console.log('Authentication cancelled');
+        }
+        
         } catch (error) {
             console.error('Wallet connection error:', error);
             alert('Failed to connect wallet');
@@ -390,7 +396,12 @@ class SupabaseAdminAuth {
     async requireAuth() {
         if (this.authorized) return true;
         
+        // Check if modal already exists
+        const existingModal = document.getElementById('authModal');
+        if (existingModal) return false;
+
         const modal = document.createElement('div');
+        modal.id = 'authModal';
         modal.style.cssText = `
             position: fixed;
             top: 0;
