@@ -721,6 +721,190 @@
     </div>
 
     <script>
+        
+        // Load current configuration
+function loadCurrentConfig() {
+    if (window.TOURNAMENT_CONFIG) {
+        currentConfig = JSON.parse(JSON.stringify(window.TOURNAMENT_CONFIG));
+        
+        // Populate form fields
+        document.getElementById('platformFee').value = currentConfig.escrow.platformFeePercentage;
+        document.getElementById('prizePool').value = currentConfig.weeklyTiers.bronze.prizePoolPercentage;
+        document.getElementById('registrationLead').value = 3;
+        
+        // Update test mode toggle
+        const isTestMode = window.tournamentTestMode && window.tournamentTestMode.isEnabled();
+        updateTestModeUI(isTestMode);
+    }
+}
+
+// Check connections
+async function checkConnections() {
+    // Check wallet
+    const walletConnected = window.phantom?.solana?.isConnected;
+    updateStatus('walletStatus', walletConnected);
+    document.getElementById('walletText').textContent = walletConnected ? 'Connected' : 'Not Connected';
+    
+    // Check database
+    if (window.walletWarsAPI) {
+        const dbConnected = await window.walletWarsAPI.testConnection();
+        updateStatus('dbStatus', dbConnected);
+    }
+    
+    // Check test mode
+    const isTestMode = window.tournamentTestMode && window.tournamentTestMode.isEnabled();
+    updateStatus('testModeStatus', !isTestMode);
+    document.getElementById('testModeText').textContent = isTestMode ? 'Test Mode' : 'Production';
+}
+
+// Update status indicator
+function updateStatus(elementId, isActive) {
+    const element = document.getElementById(elementId);
+    if (isActive) {
+        element.classList.add('active');
+    } else {
+        element.classList.remove('active');
+    }
+}
+
+// Load tournament variants
+function loadVariants() {
+    const container = document.getElementById('variantsList');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (currentConfig && currentConfig.tournamentVariants) {
+        currentConfig.tournamentVariants.forEach((variant, index) => {
+            const variantCard = createVariantCard(variant, index);
+            container.appendChild(variantCard);
+        });
+    }
+}
+
+// Create variant card
+function createVariantCard(variant, index) {
+    const card = document.createElement('div');
+    card.className = 'variant-card';
+    card.innerHTML = `
+        <div class="variant-header">
+            <h3 class="variant-name">${variant.name}</h3>
+            <div class="toggle-group">
+                <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
+                     onclick="toggleVariant(${index})"></div>
+            </div>
+        </div>
+        <div class="variant-details">
+            <div class="detail-item">
+                <span class="detail-label">Entry Fee</span>
+                <span class="detail-value">${variant.entryFee} SOL</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Max Players</span>
+                <input type="number" class="control-input" value="${variant.maxParticipants}" 
+                       min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Trading Style</span>
+                <span class="detail-value">${variant.tradingStyle.replace('_', ' ').toUpperCase()}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Duration</span>
+                <span class="detail-value">${variant.duration} days</span>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+// Update schedule preview
+function updateSchedulePreview() {
+    const container = document.getElementById('schedulePreview');
+    if (!container) return;
+    
+    const tournamentsPerDay = parseInt(document.getElementById('tournamentsPerDay').value);
+    
+    // Get selected days
+    const selectedDays = [];
+    if (document.getElementById('deployMonday').checked) selectedDays.push('Monday');
+    if (document.getElementById('deployTuesday').checked) selectedDays.push('Tuesday');
+    if (document.getElementById('deployWednesday').checked) selectedDays.push('Wednesday');
+    if (document.getElementById('deployThursday').checked) selectedDays.push('Thursday');
+    if (document.getElementById('deployFriday').checked) selectedDays.push('Friday');
+    
+    const totalPerWeek = selectedDays.length * tournamentsPerDay;
+    
+    container.innerHTML = `
+        <div class="stats-grid" style="margin-bottom: 1rem;">
+            <div class="detail-item">
+                <span class="detail-label">Deployments per week</span>
+                <span class="detail-value">${selectedDays.length}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Tournaments per deployment</span>
+                <span class="detail-value">${tournamentsPerDay}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Total tournaments per week</span>
+                <span class="detail-value">${totalPerWeek}</span>
+            </div>
+        </div>
+        <div>
+            <strong>Deployment Days:</strong> ${selectedDays.join(', ') || 'None selected'}
+        </div>
+    `;
+}
+
+// Load monitoring data
+async function loadMonitoringData() {
+    if (!window.walletWarsAPI) return;
+    
+    try {
+        // Get tournaments
+        const result = await window.walletWarsAPI.getUpcomingTournaments(50);
+        if (result.success) {
+            const tournaments = result.tournaments;
+            
+            // Count by status
+            const active = tournaments.filter(t => t.status === 'active').length;
+            const upcoming = tournaments.filter(t => t.status === 'upcoming' || t.status === 'registering').length;
+            
+            document.getElementById('totalTournaments').textContent = tournaments.length;
+            document.getElementById('activeTournaments').textContent = active;
+            document.getElementById('upcomingTournaments').textContent = upcoming;
+            
+            // Recent activity
+            const recentContainer = document.getElementById('recentActivity');
+            const recent = tournaments.slice(0, 5);
+            
+            recentContainer.innerHTML = recent.map(t => `
+                <div style="padding: 1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.1);">
+                    <strong>${t.tournament_name || 'Unnamed Tournament'}</strong><br>
+                    <small>Status: ${t.status} | Players: ${t.participant_count || 0}</small>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Failed to load monitoring data:', error);
+    }
+}
+
+// Update test mode UI
+function updateTestModeUI(isEnabled) {
+    const toggle = document.getElementById('testModeToggle');
+    const label = document.getElementById('testModeLabel');
+    
+    if (toggle && label) {
+        if (isEnabled) {
+            toggle.classList.add('active');
+            label.textContent = 'Enabled';
+        } else {
+            toggle.classList.remove('active');
+            label.textContent = 'Disabled';
+        }
+    }
+}
+
         // Add this persistence helper at the top of your script section
 class ConfigPersistence {
     static async saveToDatabase(config) {
