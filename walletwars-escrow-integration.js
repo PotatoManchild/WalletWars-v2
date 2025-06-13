@@ -13,39 +13,23 @@ class WalletWarsEscrowIntegration {
         this.SystemProgram = solanaWeb3.SystemProgram;
         this.LAMPORTS_PER_SOL = solanaWeb3.LAMPORTS_PER_SOL;
         
-        // Ensure Buffer is available globally
-        if (typeof window !== 'undefined') {
-            // Check for Buffer in various possible locations
-            if (typeof window.Buffer !== 'undefined' && window.Buffer.from) {
-                this.Buffer = window.Buffer;
-            } else if (typeof buffer !== 'undefined' && buffer.Buffer && buffer.Buffer.from) {
-                this.Buffer = buffer.Buffer;
-                window.Buffer = buffer.Buffer;
-            } else if (typeof global !== 'undefined' && global.Buffer && global.Buffer.from) {
-                this.Buffer = global.Buffer;
-                window.Buffer = global.Buffer;
-            } else {
-                // Try to find Buffer in the global scope
-                const potentialBuffer = window.buffer || window.Buffer || (typeof Buffer !== 'undefined' ? Buffer : null);
-                if (potentialBuffer && potentialBuffer.from) {
-                    this.Buffer = potentialBuffer;
-                } else if (potentialBuffer && potentialBuffer.Buffer && potentialBuffer.Buffer.from) {
-                    this.Buffer = potentialBuffer.Buffer;
-                    window.Buffer = potentialBuffer.Buffer;
-                } else {
-                    console.error('Buffer availability check failed. Available globals:', Object.keys(window).filter(k => k.toLowerCase().includes('buffer')));
-                    throw new Error('Buffer.from is not available. Please ensure buffer polyfill is properly loaded.');
-                }
-            }
+        // Simple Buffer check - since we load Buffer polyfill first, it should just be there
+        if (typeof Buffer !== 'undefined' && Buffer.from) {
+            this.Buffer = Buffer;
+            console.log('✅ Escrow: Buffer is available');
+        } else {
+            console.error('❌ Escrow: Buffer is not available!');
+            throw new Error('Buffer.from is not available. Please ensure buffer polyfill is loaded before this script.');
         }
-        
-        console.log('✅ Buffer initialized:', typeof this.Buffer.from === 'function' ? 'Buffer.from available' : 'Buffer.from NOT available');
         
         // Anchor globals (if available)
         if (typeof anchor !== 'undefined') {
             this.AnchorProvider = anchor.AnchorProvider;
             this.Program = anchor.Program;
             this.BN = anchor.BN;
+            console.log('✅ Escrow: Anchor is available');
+        } else {
+            console.log('⚠️ Escrow: Anchor not available, will use direct transactions');
         }
         
         // Store wallet
@@ -65,7 +49,7 @@ class WalletWarsEscrowIntegration {
         this.IDL = {"version":"0.1.0","name":"walletwars_escrow","instructions":[{"name":"initializeTournament","accounts":[{"name":"tournament","isMut":true,"isSigner":false},{"name":"escrowAccount","isMut":false,"isSigner":false},{"name":"authority","isMut":true,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"tournamentId","type":"string"},{"name":"entryFee","type":"u64"},{"name":"maxPlayers","type":"u32"},{"name":"platformFeePercentage","type":"u8"},{"name":"startTime","type":"i64"},{"name":"endTime","type":"i64"}]},{"name":"registerPlayer","accounts":[{"name":"tournament","isMut":true,"isSigner":false},{"name":"playerRegistration","isMut":true,"isSigner":false},{"name":"escrowAccount","isMut":true,"isSigner":false},{"name":"player","isMut":true,"isSigner":true},{"name":"playerWallet","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"finalizeTournament","accounts":[{"name":"tournament","isMut":true,"isSigner":false},{"name":"authority","isMut":false,"isSigner":true}],"args":[{"name":"winnerAddresses","type":{"vec":"publicKey"}},{"name":"prizePercentages","type":"bytes"}]},{"name":"distributePrize","accounts":[{"name":"tournament","isMut":true,"isSigner":false},{"name":"escrowAccount","isMut":true,"isSigner":false},{"name":"winner","isMut":true,"isSigner":false},{"name":"authority","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[{"name":"winnerIndex","type":"u8"},{"name":"prizePercentage","type":"u8"}]},{"name":"collectPlatformFees","accounts":[{"name":"tournament","isMut":false,"isSigner":false},{"name":"escrowAccount","isMut":true,"isSigner":false},{"name":"platformWallet","isMut":true,"isSigner":false},{"name":"authority","isMut":false,"isSigner":true},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]},{"name":"cancelTournament","accounts":[{"name":"tournament","isMut":true,"isSigner":false},{"name":"authority","isMut":false,"isSigner":true}],"args":[]},{"name":"refundPlayer","accounts":[{"name":"tournament","isMut":false,"isSigner":false},{"name":"playerRegistration","isMut":true,"isSigner":false},{"name":"escrowAccount","isMut":true,"isSigner":false},{"name":"player","isMut":true,"isSigner":false},{"name":"systemProgram","isMut":false,"isSigner":false}],"args":[]}],"accounts":[{"name":"Tournament","type":{"kind":"struct","fields":[{"name":"authority","type":"publicKey"},{"name":"tournamentId","type":"string"},{"name":"entryFee","type":"u64"},{"name":"maxPlayers","type":"u32"},{"name":"currentPlayers","type":"u32"},{"name":"platformFeePercentage","type":"u8"},{"name":"totalPrizePool","type":"u64"},{"name":"platformFeesCollected","type":"u64"},{"name":"startTime","type":"i64"},{"name":"endTime","type":"i64"},{"name":"isActive","type":"bool"},{"name":"isFinalized","type":"bool"},{"name":"escrowBump","type":"u8"}]}},{"name":"PlayerRegistration","type":{"kind":"struct","fields":[{"name":"player","type":"publicKey"},{"name":"tournament","type":"publicKey"},{"name":"isRegistered","type":"bool"},{"name":"isRefunded","type":"bool"},{"name":"registrationTime","type":"i64"}]}}],"errors":[{"code":6000,"name":"InvalidFeePercentage","msg":"Invalid fee percentage. Must be 20% or less"},{"code":6001,"name":"InvalidEntryFee","msg":"Invalid entry fee. Must be greater than 0"},{"code":6002,"name":"InvalidMaxPlayers","msg":"Invalid max players. Must be between 1 and 1000"},{"code":6003,"name":"InvalidTimeRange","msg":"Invalid time range. End time must be after start time"},{"code":6004,"name":"TournamentNotActive","msg":"Tournament is not active"},{"code":6005,"name":"TournamentFinalized","msg":"Tournament has been finalized"},{"code":6006,"name":"TournamentFull","msg":"Tournament is full"},{"code":6007,"name":"TournamentEnded","msg":"Tournament has ended"},{"code":6008,"name":"AlreadyRegistered","msg":"Player already registered"},{"code":6009,"name":"TournamentNotEnded","msg":"Tournament has not ended yet"},{"code":6010,"name":"AlreadyFinalized","msg":"Tournament already finalized"},{"code":6011,"name":"MismatchedWinnersData","msg":"Mismatched winners and prize data"},{"code":6012,"name":"InvalidPrizeDistribution","msg":"Prize percentages must add up to 100"},{"code":6013,"name":"NotFinalized","msg":"Tournament not finalized"},{"code":6014,"name":"NoFeesToCollect","msg":"No fees to collect"},{"code":6015,"name":"TournamentStillActive","msg":"Tournament still active"},{"code":6016,"name":"NotRegistered","msg":"Player not registered"},{"code":6017,"name":"AlreadyRefunded","msg":"Player already refunded"}]};
         
         // Initialize Anchor program if available
-        if (this.AnchorProvider && this.Program) {
+        if (this.AnchorProvider && this.Program && wallet) {
             try {
                 this.provider = new this.AnchorProvider(
                     this.connection,
@@ -73,13 +57,13 @@ class WalletWarsEscrowIntegration {
                     { commitment: 'confirmed' }
                 );
                 this.program = new this.Program(this.IDL, this.PROGRAM_ID, this.provider);
-                console.log('✅ Anchor program initialized');
+                console.log('✅ Escrow: Anchor program initialized');
             } catch (error) {
-                console.warn('⚠️ Anchor initialization failed, using direct transactions:', error);
+                console.warn('⚠️ Escrow: Anchor initialization failed, using direct transactions:', error);
                 this.program = null;
             }
         } else {
-            console.warn('⚠️ Anchor not available, using direct transactions');
+            console.warn('⚠️ Escrow: Anchor not available or no wallet provided');
             this.program = null;
         }
     }
@@ -100,7 +84,7 @@ class WalletWarsEscrowIntegration {
         try {
             console.log(`🎮 Initializing tournament ${tournamentId} on-chain...`);
 
-            // Generate PDAs using stored Buffer reference
+            // Generate PDAs
             const [tournamentPDA] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
@@ -110,6 +94,11 @@ class WalletWarsEscrowIntegration {
                 [this.Buffer.from('escrow'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
             );
+
+            console.log('📍 PDAs generated:', {
+                tournament: tournamentPDA.toString(),
+                escrow: escrowPDA.toString()
+            });
 
             // If Anchor is available, use it
             if (this.program && this.BN) {
@@ -161,7 +150,7 @@ class WalletWarsEscrowIntegration {
         try {
             console.log(`📝 Registering player for tournament ${tournamentId}...`);
 
-            // Generate PDAs using stored Buffer reference
+            // Generate PDAs
             const [tournamentPDA] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
@@ -314,7 +303,10 @@ class WalletWarsEscrowIntegration {
             const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
             console.log('✅ Escrow program found:', !!programInfo);
             
-            // Test 3: Generate test PDAs using stored Buffer reference
+            // Test 3: Buffer works
+            console.log('✅ Buffer test:', typeof this.Buffer.from === 'function');
+            
+            // Test 4: Generate test PDAs
             const testId = 'test_' + Date.now();
             const [tournamentPDA] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(testId)],
