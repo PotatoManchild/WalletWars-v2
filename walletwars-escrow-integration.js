@@ -13,14 +13,8 @@ class WalletWarsEscrowIntegration {
         this.SystemProgram = solanaWeb3.SystemProgram;
         this.LAMPORTS_PER_SOL = solanaWeb3.LAMPORTS_PER_SOL;
         
-        // Simple Buffer check - since we load Buffer polyfill first, it should just be there
-        if (typeof Buffer !== 'undefined' && Buffer.from) {
-            this.Buffer = Buffer;
-            console.log('✅ Escrow: Buffer is available');
-        } else {
-            console.error('❌ Escrow: Buffer is not available!');
-            throw new Error('Buffer.from is not available. Please ensure buffer polyfill is loaded before this script.');
-        }
+        // Enhanced Buffer detection and fallback
+        this.Buffer = this.setupBuffer();
         
         // Anchor globals (if available)
         if (typeof anchor !== 'undefined') {
@@ -66,6 +60,86 @@ class WalletWarsEscrowIntegration {
             console.warn('⚠️ Escrow: Anchor not available or no wallet provided');
             this.program = null;
         }
+    }
+
+    /**
+     * Setup Buffer with multiple fallback strategies
+     */
+    setupBuffer() {
+        // Strategy 1: Check if Buffer is already global
+        if (typeof Buffer !== 'undefined' && Buffer.from) {
+            console.log('✅ Escrow: Buffer found globally');
+            return Buffer;
+        }
+        
+        // Strategy 2: Check window.Buffer
+        if (typeof window !== 'undefined' && window.Buffer && window.Buffer.from) {
+            console.log('✅ Escrow: Buffer found on window');
+            return window.Buffer;
+        }
+        
+        // Strategy 3: Create a minimal Buffer polyfill for Solana usage
+        console.warn('⚠️ Escrow: Creating minimal Buffer polyfill');
+        
+        const BufferPolyfill = {
+            from: (data, encoding) => {
+                if (typeof data === 'string') {
+                    if (encoding === 'hex') {
+                        // Convert hex string to Uint8Array
+                        const bytes = [];
+                        for (let i = 0; i < data.length; i += 2) {
+                            bytes.push(parseInt(data.substr(i, 2), 16));
+                        }
+                        return new Uint8Array(bytes);
+                    } else {
+                        // Default to UTF-8 encoding
+                        const encoder = new TextEncoder();
+                        return encoder.encode(data);
+                    }
+                } else if (data instanceof ArrayBuffer) {
+                    return new Uint8Array(data);
+                } else if (data instanceof Uint8Array) {
+                    return data;
+                } else if (Array.isArray(data)) {
+                    return new Uint8Array(data);
+                }
+                throw new Error('Unsupported data type for Buffer.from');
+            },
+            
+            isBuffer: (obj) => obj instanceof Uint8Array,
+            
+            concat: (arrays) => {
+                const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+                const result = new Uint8Array(totalLength);
+                let offset = 0;
+                arrays.forEach(arr => {
+                    result.set(arr, offset);
+                    offset += arr.length;
+                });
+                return result;
+            },
+            
+            // Additional methods that might be needed
+            toString: (buffer, encoding) => {
+                if (encoding === 'hex') {
+                    return Array.from(buffer)
+                        .map(b => b.toString(16).padStart(2, '0'))
+                        .join('');
+                } else {
+                    // Default to UTF-8
+                    const decoder = new TextDecoder();
+                    return decoder.decode(buffer);
+                }
+            }
+        };
+        
+        // Make it available globally for other scripts
+        if (typeof window !== 'undefined') {
+            window.Buffer = BufferPolyfill;
+        }
+        
+        console.log('✅ Escrow: Buffer polyfill created');
+        return BufferPolyfill;
     }
 
     /**
@@ -289,7 +363,7 @@ class WalletWarsEscrowIntegration {
     }
 
     /**
-     * Simple test function
+     * Enhanced test function with better diagnostics
      */
     async testConnection() {
         try {
@@ -303,8 +377,22 @@ class WalletWarsEscrowIntegration {
             const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
             console.log('✅ Escrow program found:', !!programInfo);
             
-            // Test 3: Buffer works
-            console.log('✅ Buffer test:', typeof this.Buffer.from === 'function');
+            // Test 3: Buffer works with all methods
+            console.log('🧪 Testing Buffer functionality...');
+            
+            // Test Buffer.from with string
+            const testString = 'hello world';
+            const bufferFromString = this.Buffer.from(testString);
+            console.log('✅ Buffer.from(string):', bufferFromString.length, 'bytes');
+            
+            // Test Buffer.from with hex
+            const hexString = '48656c6c6f'; // "Hello" in hex
+            const bufferFromHex = this.Buffer.from(hexString, 'hex');
+            console.log('✅ Buffer.from(hex):', bufferFromHex.length, 'bytes');
+            
+            // Test Buffer.concat
+            const concat = this.Buffer.concat([bufferFromString, bufferFromHex]);
+            console.log('✅ Buffer.concat:', concat.length, 'bytes');
             
             // Test 4: Generate test PDAs
             const testId = 'test_' + Date.now();
@@ -314,12 +402,45 @@ class WalletWarsEscrowIntegration {
             );
             console.log('✅ Can generate PDAs:', tournamentPDA.toString());
             
-            return { success: true, message: 'All tests passed!' };
+            // Test 5: Verify Anchor if available
+            if (this.program) {
+                console.log('✅ Anchor program is initialized');
+                console.log('   Program ID:', this.program.programId.toString());
+            } else {
+                console.log('⚠️ Anchor not available (optional)');
+            }
+            
+            return { 
+                success: true, 
+                message: 'All tests passed!',
+                details: {
+                    solanaConnected: true,
+                    programFound: !!programInfo,
+                    bufferWorking: true,
+                    pdaGeneration: true,
+                    anchorAvailable: !!this.program
+                }
+            };
             
         } catch (error) {
             console.error('❌ Test failed:', error);
             return { success: false, error: error.message };
         }
+    }
+
+    /**
+     * Utility function to check if all dependencies are loaded
+     */
+    checkDependencies() {
+        const deps = {
+            Buffer: !!this.Buffer && typeof this.Buffer.from === 'function',
+            Solana: !!this.Connection && !!this.PublicKey,
+            Anchor: !!this.AnchorProvider && !!this.Program,
+            Wallet: !!this.wallet
+        };
+        
+        console.log('📋 Dependency check:', deps);
+        return deps;
     }
 }
 
@@ -330,3 +451,10 @@ console.log('✅ WalletWars Escrow Integration loaded!');
 console.log('📋 Available at: window.WalletWarsEscrowIntegration');
 console.log('🎮 Program ID:', 'AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7');
 console.log('💰 Platform Wallet:', '5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
+
+// Auto-test if Buffer is available
+if (typeof Buffer !== 'undefined' || (typeof window !== 'undefined' && window.Buffer)) {
+    console.log('🎉 Buffer is available for escrow integration!');
+} else {
+    console.warn('⚠️ Buffer not yet available, will create polyfill when instantiated');
+}

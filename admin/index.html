@@ -8,26 +8,86 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
-    <!-- CRITICAL: Buffer polyfill MUST load first -->
+    <!-- CRITICAL: Buffer polyfill with proper global setup -->
     <script>
         // Setup global for Buffer polyfill
         if (typeof window !== 'undefined') {
             window.global = window;
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
-    <script>
-        // Ensure Buffer is available globally
-        if (typeof Buffer !== 'undefined') {
-            window.Buffer = Buffer;
-            console.log('✅ Buffer polyfill loaded successfully');
-            console.log('✅ Buffer.from available:', typeof Buffer.from === 'function');
-        } else {
-            console.error('❌ Failed to load Buffer polyfill');
+            window.process = { env: {} }; // Some polyfills need this
         }
     </script>
     
-    <!-- NOW load Solana Web3.js (AFTER Buffer) -->
+    <!-- Load buffer polyfill from UNPKG which properly exports Buffer -->
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <script>
+        // The UNPKG version creates a 'buffer' module, we need to extract Buffer from it
+        if (typeof window !== 'undefined' && typeof require !== 'undefined') {
+            try {
+                // For browserify-style builds
+                window.Buffer = require('buffer').Buffer;
+            } catch (e) {
+                console.log('Trying alternative Buffer setup...');
+            }
+        }
+        
+        // Alternative: If the above doesn't work, try accessing it directly
+        if (typeof Buffer === 'undefined' && window.buffer && window.buffer.Buffer) {
+            window.Buffer = window.buffer.Buffer;
+        }
+        
+        // Verify Buffer is available
+        if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function') {
+            console.log('✅ Buffer polyfill loaded successfully');
+            console.log('✅ Buffer.from test:', Buffer.from('test', 'utf8').toString());
+            
+            // Test Buffer functionality
+            const testBuffer = Buffer.from('hello world', 'utf8');
+            console.log('✅ Buffer test passed:', testBuffer.length, 'bytes');
+        } else {
+            console.error('❌ Failed to load Buffer polyfill');
+            
+            // Last resort: Create a minimal Buffer shim for Solana Web3.js
+            console.log('⚠️ Creating minimal Buffer shim...');
+            window.Buffer = {
+                from: (data, encoding) => {
+                    if (typeof data === 'string') {
+                        const encoder = new TextEncoder();
+                        return encoder.encode(data);
+                    }
+                    return new Uint8Array(data);
+                },
+                isBuffer: (obj) => obj instanceof Uint8Array,
+                concat: (arrays) => {
+                    const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
+                    const result = new Uint8Array(totalLength);
+                    let offset = 0;
+                    arrays.forEach(arr => {
+                        result.set(arr, offset);
+                        offset += arr.length;
+                    });
+                    return result;
+                }
+            };
+        }
+    </script>
+    
+    <!-- Alternative approach: Use browserify-buffer standalone build -->
+    <script>
+        // If Buffer still isn't available, try the browserify standalone build
+        if (typeof Buffer === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://bundle.run/buffer@6.0.3';
+            script.onload = function() {
+                if (typeof buffer !== 'undefined' && buffer.Buffer) {
+                    window.Buffer = buffer.Buffer;
+                    console.log('✅ Buffer loaded via bundle.run');
+                }
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    
+    <!-- NOW load Solana Web3.js (AFTER Buffer setup) -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
     <!-- Anchor (optional) -->
