@@ -73,6 +73,7 @@
             display: flex;
             gap: 1rem;
             align-items: center;
+            flex-wrap: wrap;
         }
 
         .status-indicator {
@@ -115,6 +116,22 @@
             margin-bottom: 2rem;
             border-bottom: 1px solid rgba(139, 92, 246, 0.2);
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #8b5cf6 rgba(139, 92, 246, 0.1);
+        }
+
+        .tab-navigation::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .tab-navigation::-webkit-scrollbar-track {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .tab-navigation::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 4px;
         }
 
         .tab-button {
@@ -128,6 +145,7 @@
             position: relative;
             white-space: nowrap;
             transition: all 0.3s ease;
+            min-height: 44px;
         }
 
         .tab-button:hover {
@@ -283,12 +301,20 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
         .variant-name {
             font-size: 1.1rem;
             font-weight: 600;
             color: #ffffff;
+        }
+
+        .variant-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
         }
 
         .variant-details {
@@ -326,6 +352,7 @@
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
+            min-height: 44px;
         }
 
         .btn-primary {
@@ -355,6 +382,11 @@
 
         .btn-danger:hover {
             background: #dc2626;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
         }
 
         .preview-section {
@@ -419,6 +451,18 @@
             color: #10b981;
         }
 
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+        }
+
+        .alert-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+        }
+
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -432,13 +476,357 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #8b5cf6;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(139, 92, 246, 0.1);
+            color: #ffffff;
+        }
+
+        .modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+
+        /* Deployment History */
+        .deployment-item {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.1);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .deployment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .deployment-date {
+            font-weight: 600;
+            color: #8b5cf6;
+        }
+
+        .deployment-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .deployment-status.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .deployment-status.pending {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
+        }
+
+        .deployment-status.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-width: 400px;
+        }
+
+        .toast {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: toastSlideIn 0.3s ease;
+            cursor: pointer;
+        }
+
+        @keyframes toastSlideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.success {
+            background: rgba(16, 185, 129, 0.9);
+            color: white;
+        }
+
+        .toast.error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .toast.warning {
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+        }
+
+        .toast.info {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .admin-container {
+                padding: 1rem;
+            }
+
+            .admin-title {
+                font-size: 1.5rem;
+            }
+
+            .connection-status {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .status-indicator {
+                justify-content: center;
+            }
+
+            .control-panel {
+                padding: 1rem;
+            }
+
+            .panel-title {
+                font-size: 1.25rem;
+            }
+
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-button {
+                padding: 0.75rem 1rem;
+                font-size: 0.9rem;
+            }
+
+            .variant-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .variant-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .variant-details {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .modal {
+                padding: 1.5rem;
+            }
+
+            .modal-footer {
+                flex-direction: column;
+            }
+
+            .modal-footer .btn {
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .deployment-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .toast-container {
+                left: 1rem;
+                right: 1rem;
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .admin-title {
+                font-size: 1.25rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .variant-details {
+                grid-template-columns: 1fr;
+            }
+
+            .tab-navigation {
+                gap: 0.5rem;
+            }
+
+            .tab-button {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Hamburger Menu for Mobile */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .tab-navigation {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 80%;
+                max-width: 300px;
+                height: 100vh;
+                background: #1a1a2e;
+                flex-direction: column;
+                padding: 2rem 1rem;
+                transition: left 0.3s ease;
+                z-index: 999;
+                overflow-y: auto;
+                gap: 0.5rem;
+            }
+
+            .tab-navigation.mobile-open {
+                left: 0;
+            }
+
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 998;
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
     <!-- Header -->
     <header class="admin-header">
         <div class="header-content">
-            <h1 class="admin-title">🎮 WalletWars Control Center</h1>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">☰</button>
+                <h1 class="admin-title">🎮 WalletWars Control Center</h1>
+            </div>
             <div class="connection-status">
                 <div class="status-indicator">
                     <span class="status-dot" id="walletStatus"></span>
@@ -455,6 +843,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
 
     <!-- Main Container -->
     <div class="admin-container">
@@ -474,6 +865,9 @@
             </button>
             <button class="tab-button" onclick="switchTab('monitoring', this)">
                 📊 Monitoring
+            </button>
+            <button class="tab-button" onclick="switchTab('history', this)">
+                📜 Deployment History
             </button>
         </div>
 
@@ -523,7 +917,7 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="saveGlobalConfig()">
                         💾 Save Configuration
                     </button>
@@ -565,7 +959,7 @@
 
                 <!-- Add New Variant -->
                 <div style="margin-top: 2rem;">
-                    <button class="btn btn-primary" onclick="showAddVariantForm()">
+                    <button class="btn btn-primary" onclick="showAddVariantModal()">
                         ➕ Add New Variant
                     </button>
                 </div>
@@ -638,9 +1032,12 @@
                     </div>
                 </div>
 
-                <div style="margin-top: 2rem;">
+                <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
                     <button class="btn btn-primary" onclick="saveDeploymentSchedule()">
                         💾 Save Schedule
+                    </button>
+                    <button class="btn btn-secondary" onclick="deployTournamentsNow()">
+                        🚀 Deploy Tournaments Now
                     </button>
                 </div>
             </div>
@@ -710,12 +1107,81 @@
                 </div>
             </div>
 
-            <!-- Recent Activity -->
+            <!-- Tournament Details -->
             <div class="control-panel">
-                <h2 class="panel-title">📊 Recent Activity</h2>
-                <div id="recentActivity">
+                <h2 class="panel-title">📊 Tournament Details</h2>
+                <div id="tournamentDetails">
                     <!-- Will be populated dynamically -->
                 </div>
+            </div>
+        </div>
+
+        <!-- Deployment History Tab -->
+        <div id="history-tab" class="tab-content">
+            <div class="control-panel">
+                <h2 class="panel-title">📜 Deployment History</h2>
+                
+                <div id="deploymentHistory">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Add Variant Modal -->
+    <div id="addVariantModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">➕ Add New Tournament Variant</h3>
+                <button class="modal-close" onclick="closeAddVariantModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="control-group">
+                    <label class="control-label">Variant Name</label>
+                    <input type="text" class="control-input" id="newVariantName" 
+                           placeholder="e.g., PLATINUM - Pure Wallet">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Entry Fee (SOL)</label>
+                    <input type="number" class="control-input" id="newVariantEntryFee" 
+                           min="0.001" step="0.001" placeholder="0.1">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Max Participants</label>
+                    <input type="number" class="control-input" id="newVariantMaxParticipants" 
+                           min="10" step="10" placeholder="100">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Trading Style</label>
+                    <select class="control-select" id="newVariantTradingStyle">
+                        <option value="pure_wallet">Pure Wallet</option>
+                        <option value="hybrid">Hybrid</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Duration (Days)</label>
+                    <input type="number" class="control-input" id="newVariantDuration" 
+                           min="1" step="1" value="7">
+                </div>
+                
+                <div class="control-group">
+                    <label class="control-label">Enabled</label>
+                    <div class="toggle-group">
+                        <div class="toggle-switch active" id="newVariantEnabled"></div>
+                        <span>Enabled</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddVariantModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="addNewVariant()">Add Variant</button>
             </div>
         </div>
     </div>
@@ -773,6 +1239,44 @@
             }
         }
 
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            }[type];
+            
+            toast.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+            toast.onclick = () => toast.remove();
+            
+            toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Alias for compatibility
+        function showAlert(message, type) {
+            showToast(message, type);
+        }
+
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const nav = document.querySelector('.tab-navigation');
+            const overlay = document.querySelector('.mobile-overlay');
+            
+            nav.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+        }
+
         // Tab switching function
         function switchTab(tabName, buttonElement) {
             // Hide all tabs
@@ -793,11 +1297,19 @@
                 buttonElement.classList.add('active');
             }
 
+            // Close mobile menu
+            const nav = document.querySelector('.tab-navigation');
+            const overlay = document.querySelector('.mobile-overlay');
+            nav.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+
             // Refresh data for specific tabs
             if (tabName === 'monitoring') {
                 loadMonitoringData();
             } else if (tabName === 'deployment') {
                 updateSchedulePreview();
+            } else if (tabName === 'history') {
+                loadDeploymentHistory();
             }
         }
 
@@ -921,7 +1433,7 @@
             const result = await ConfigPersistence.saveToDatabase(currentConfig);
             
             if (result.success) {
-                showAlert('Configuration saved successfully and permanently!', 'success');
+                showAlert('Configuration saved successfully!', 'success');
                 isDirty = false;
             } else {
                 showAlert('Configuration saved locally but failed to save to database: ' + result.error, 'warning');
@@ -939,140 +1451,6 @@
         function loadVariants() {
             const container = document.getElementById('variantsList');
             if (!container) return;
-            
-            container.innerHTML = '';
-            
-            if (currentConfig && currentConfig.tournamentVariants) {
-                currentConfig.tournamentVariants.forEach((variant, index) => {
-                    const variantCard = createVariantCard(variant, index);
-                    container.appendChild(variantCard);
-                });
-            }
-        }
-
-        // Create variant card
-        function createVariantCard(variant, index) {
-            const card = document.createElement('div');
-            card.className = 'variant-card';
-            card.innerHTML = `
-                <div class="variant-header">
-                    <h3 class="variant-name">${variant.name}</h3>
-                    <div class="toggle-group">
-                        <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
-                             onclick="toggleVariant(${index})"></div>
-                    </div>
-                </div>
-                <div class="variant-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Entry Fee</span>
-                        <span class="detail-value">${variant.entryFee} SOL</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Max Players</span>
-                        <input type="number" class="control-input" value="${variant.maxParticipants}" 
-                               min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Trading Style</span>
-                        <span class="detail-value">${variant.tradingStyle.replace('_', ' ').toUpperCase()}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Duration</span>
-                        <span class="detail-value">${variant.duration} days</span>
-                    </div>
-                </div>
-            `;
-            return card;
-        }
-
-        // Toggle variant
-        function toggleVariant(index) {
-            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
-                const variant = currentConfig.tournamentVariants[index];
-                variant.enabled = variant.enabled === false ? true : false;
-                loadVariants();
-                isDirty = true;
-                
-                // Auto-save variant changes
-                saveVariantChanges();
-            }
-        }
-
-        // Update variant capacity
-        function updateVariantCapacity(index, value) {
-            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
-                currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
-                isDirty = true;
-                
-                // Debounce auto-save (wait 1 second after typing stops)
-                clearTimeout(window.capacitySaveTimeout);
-                window.capacitySaveTimeout = setTimeout(() => {
-                    saveVariantChanges();
-                }, 1000);
-            }
-        }
-
-        // Save variant changes
-        async function saveVariantChanges() {
-            // Apply to window config
-            window.TOURNAMENT_CONFIG = currentConfig;
-            
-            // Save to database
-            const result = await ConfigPersistence.saveToDatabase(currentConfig);
-            
-            if (result.success) {
-                showAlert('Tournament variants saved permanently!', 'success');
-                isDirty = false;
-            } else {
-                showAlert('Failed to save variants to database: ' + result.error, 'error');
-            }
-        }
-
-        // Filter variants
-        function filterVariants(filter) {
-            const cards = document.querySelectorAll('.variant-card');
-            cards.forEach(card => {
-                const nameElement = card.querySelector('.variant-name');
-                if (!nameElement) return;
-                
-                const name = nameElement.textContent.toLowerCase();
-                if (filter === 'all') {
-                    card.style.display = 'block';
-                } else if (filter === 'pure_wallet' && name.includes('pure wallet')) {
-                    card.style.display = 'block';
-                } else if (filter === 'bronze' && name.includes('bronze')) {
-                    card.style.display = 'block';
-                } else if (filter === 'silver' && name.includes('silver')) {
-                    card.style.display = 'block';
-                } else if (filter === 'gold' && name.includes('gold')) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-
-        // Show add variant form (placeholder)
-        function showAddVariantForm() {
-            showAlert('Add variant form coming soon!', 'info');
-        }
-
-        // Update schedule preview
-        function updateSchedulePreview() {
-            const container = document.getElementById('schedulePreview');
-            if (!container) return;
-            
-            const tournamentsPerDay = parseInt(document.getElementById('tournamentsPerDay').value);
-            
-            // Get selected days
-            const selectedDays = [];
-            if (document.getElementById('deployMonday').checked) selectedDays.push('Monday');
-            if (document.getElementById('deployTuesday').checked) selectedDays.push('Tuesday');
-            if (document.getElementById('deployWednesday').checked) selectedDays.push('Wednesday');
-            if (document.getElementById('deployThursday').checked) selectedDays.push('Thursday');
-            if (document.getElementById('deployFriday').checked) selectedDays.push('Friday');
-            
-            const totalPerWeek = selectedDays.length * tournamentsPerDay;
             
             container.innerHTML = `
                 <div class="stats-grid" style="margin-bottom: 1rem;">
@@ -1123,7 +1501,7 @@
             const result = await ConfigPersistence.saveToDatabase(currentConfig);
             
             if (result.success) {
-                showAlert('Deployment schedule saved permanently!', 'success');
+                showAlert('Deployment schedule saved!', 'success');
                 isDirty = false;
             } else {
                 showAlert('Schedule saved locally but failed to save to database: ' + result.error, 'warning');
@@ -1272,7 +1650,7 @@
             input.click();
         }
 
-        // Load monitoring data
+        // Load monitoring data with enhanced participant details
         async function loadMonitoringData() {
             if (!window.walletWarsAPI) return;
             
@@ -1290,21 +1668,151 @@
                     document.getElementById('activeTournaments').textContent = active;
                     document.getElementById('upcomingTournaments').textContent = upcoming;
                     
-                    // Recent activity
-                    const recentContainer = document.getElementById('recentActivity');
-                    const recent = tournaments.slice(0, 5);
+                    // Get total players across all tournaments
+                    let totalPlayers = 0;
                     
-                    if (recentContainer) {
-                        recentContainer.innerHTML = recent.length > 0 ? recent.map(t => `
-                            <div style="padding: 1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.1);">
-                                <strong>${t.tournament_name || 'Unnamed Tournament'}</strong><br>
-                                <small>Status: ${t.status} | Players: ${t.participant_count || 0}</small>
+                    // Tournament details with participants
+                    const detailsContainer = document.getElementById('tournamentDetails');
+                    
+                    if (detailsContainer) {
+                        detailsContainer.innerHTML = '<div class="loading-spinner"></div> Loading tournament details...';
+                        
+                        // Get detailed info for each tournament
+                        const detailedTournaments = [];
+                        
+                        for (const tournament of tournaments.slice(0, 10)) { // Show top 10
+                            try {
+                                // Get entries for this tournament
+                                const { data: entries, error } = await window.walletWarsAPI.supabase
+                                    .from('tournament_entries')
+                                    .select('*')
+                                    .eq('tournament_id', tournament.id);
+                                    
+                                if (!error && entries) {
+                                    totalPlayers += entries.length;
+                                    detailedTournaments.push({
+                                        ...tournament,
+                                        entries: entries
+                                    });
+                                }
+                            } catch (err) {
+                                console.error('Failed to load entries for tournament:', err);
+                            }
+                        }
+                        
+                        // Update total players
+                        document.getElementById('totalPlayers').textContent = totalPlayers;
+                        
+                        // Render tournament details
+                        detailsContainer.innerHTML = detailedTournaments.length > 0 ? detailedTournaments.map(t => `
+                            <div class="deployment-item">
+                                <div class="deployment-header">
+                                    <div>
+                                        <div class="deployment-date">${t.tournament_name || 'Unnamed Tournament'}</div>
+                                        <small>
+                                            Status: <span class="deployment-status ${t.status}">${t.status}</span> | 
+                                            Entry Fee: ${t.entry_fee} SOL | 
+                                            Max: ${t.max_participants}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <strong>${t.entries ? t.entries.length : 0} / ${t.max_participants}</strong> players
+                                    </div>
+                                </div>
+                                ${t.entries && t.entries.length > 0 ? `
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(139, 92, 246, 0.1);">
+                                        <strong>Participants:</strong>
+                                        <div style="margin-top: 0.5rem; display: grid; gap: 0.5rem;">
+                                            ${t.entries.slice(0, 5).map(e => `
+                                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                    <span style="font-family: monospace; font-size: 0.875rem;">
+                                                        ${e.wallet_address.substring(0, 6)}...${e.wallet_address.substring(e.wallet_address.length - 4)}
+                                                    </span>
+                                                    <span style="color: #9ca3af; font-size: 0.875rem;">
+                                                        ${new Date(e.created_at).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            `).join('')}
+                                            ${t.entries.length > 5 ? `
+                                                <div style="color: #9ca3af; font-size: 0.875rem;">
+                                                    ... and ${t.entries.length - 5} more
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
                             </div>
-                        `).join('') : '<div style="padding: 1rem; color: #9ca3af;">No recent tournaments</div>';
+                        `).join('') : '<div style="padding: 1rem; color: #9ca3af;">No tournaments found</div>';
                     }
                 }
             } catch (error) {
                 console.error('Failed to load monitoring data:', error);
+                showAlert('Failed to load monitoring data', 'error');
+            }
+        }
+
+        // Load deployment history
+        async function loadDeploymentHistory() {
+            const container = document.getElementById('deploymentHistory');
+            if (!container) return;
+            
+            container.innerHTML = '<div class="loading-spinner"></div> Loading deployment history...';
+            
+            try {
+                // Get deployment logs
+                const { data: logs, error } = await window.walletWarsAPI.supabase
+                    .from('admin_logs')
+                    .select('*')
+                    .eq('action', 'manual_deployment')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                    
+                if (error) throw error;
+                
+                if (logs && logs.length > 0) {
+                    container.innerHTML = logs.map(log => {
+                        const details = log.details || {};
+                        const results = details.results || [];
+                        const successCount = results.filter(r => r.success).length;
+                        const totalCount = results.length;
+                        
+                        return `
+                            <div class="deployment-item">
+                                <div class="deployment-header">
+                                    <div>
+                                        <div class="deployment-date">
+                                            ${new Date(log.created_at).toLocaleString()}
+                                        </div>
+                                        <small>
+                                            Deployed by: ${log.admin_wallet.substring(0, 6)}...${log.admin_wallet.substring(log.admin_wallet.length - 4)}
+                                        </small>
+                                    </div>
+                                    <div>
+                                        <span class="deployment-status ${successCount === totalCount ? 'success' : successCount > 0 ? 'pending' : 'failed'}">
+                                            ${successCount} / ${totalCount} Success
+                                        </span>
+                                    </div>
+                                </div>
+                                ${results.length > 0 ? `
+                                    <div style="margin-top: 0.5rem;">
+                                        ${results.map(r => `
+                                            <div style="padding: 0.25rem 0; color: ${r.success ? '#10b981' : '#ef4444'};">
+                                                ${r.success ? '✅' : '❌'} ${r.variant}
+                                                ${r.error ? ` - ${r.error}` : ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div style="padding: 1rem; color: #9ca3af;">No deployment history found</div>';
+                }
+                
+            } catch (error) {
+                console.error('Failed to load deployment history:', error);
+                container.innerHTML = '<div class="alert alert-error">Failed to load deployment history</div>';
             }
         }
 
@@ -1372,14 +1880,6 @@
             updateSchedulePreview();
         }
 
-        // Show alert
-        function showAlert(message, type = 'info') {
-            // Simple alert implementation - you can enhance this
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            // You could add a toast notification system here
-        }
-
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', async () => {
             console.log('🚀 Admin Control Center initializing...');
@@ -1439,6 +1939,11 @@
                 }
             });
 
+            // Toggle for new variant modal
+            document.getElementById('newVariantEnabled').addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+
             // Refresh monitoring data periodically
             setInterval(() => {
                 if (document.getElementById('monitoring-tab').classList.contains('active')) {
@@ -1451,4 +1956,356 @@
     <!-- Admin Auth MUST be last! -->
     <script src="admin-auth.js"></script>
 </body>
-</html>
+</html> = '';
+            
+            if (currentConfig && currentConfig.tournamentVariants) {
+                currentConfig.tournamentVariants.forEach((variant, index) => {
+                    const variantCard = createVariantCard(variant, index);
+                    container.appendChild(variantCard);
+                });
+            }
+        }
+
+        // Create variant card
+        function createVariantCard(variant, index) {
+            const card = document.createElement('div');
+            card.className = 'variant-card';
+            card.innerHTML = `
+                <div class="variant-header">
+                    <h3 class="variant-name">${variant.name}</h3>
+                    <div class="variant-actions">
+                        <button class="btn btn-danger btn-small" onclick="deleteVariant(${index})">
+                            🗑️ Delete
+                        </button>
+                        <div class="toggle-group">
+                            <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
+                                 onclick="toggleVariant(${index})"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="variant-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Entry Fee</span>
+                        <span class="detail-value">${variant.entryFee} SOL</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Max Players</span>
+                        <input type="number" class="control-input" value="${variant.maxParticipants}" 
+                               min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Trading Style</span>
+                        <span class="detail-value">${variant.tradingStyle.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Duration</span>
+                        <span class="detail-value">${variant.duration} days</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // Toggle variant
+        function toggleVariant(index) {
+            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
+                const variant = currentConfig.tournamentVariants[index];
+                variant.enabled = variant.enabled === false ? true : false;
+                loadVariants();
+                isDirty = true;
+                
+                // Auto-save variant changes
+                saveVariantChanges();
+            }
+        }
+
+        // Delete variant
+        async function deleteVariant(index) {
+            const variant = currentConfig.tournamentVariants[index];
+            if (!confirm(`Delete variant "${variant.name}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            // Remove from array
+            currentConfig.tournamentVariants.splice(index, 1);
+            
+            // Reload UI
+            loadVariants();
+            
+            // Save changes
+            await saveVariantChanges();
+            showAlert(`Variant "${variant.name}" deleted successfully!`, 'success');
+        }
+
+        // Update variant capacity
+        function updateVariantCapacity(index, value) {
+            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
+                currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
+                isDirty = true;
+                
+                // Debounce auto-save (wait 1 second after typing stops)
+                clearTimeout(window.capacitySaveTimeout);
+                window.capacitySaveTimeout = setTimeout(() => {
+                    saveVariantChanges();
+                }, 1000);
+            }
+        }
+
+        // Save variant changes
+        async function saveVariantChanges() {
+            // Apply to window config
+            window.TOURNAMENT_CONFIG = currentConfig;
+            
+            // Save to database
+            const result = await ConfigPersistence.saveToDatabase(currentConfig);
+            
+            if (result.success) {
+                showAlert('Tournament variants saved!', 'success');
+                isDirty = false;
+            } else {
+                showAlert('Failed to save variants to database: ' + result.error, 'error');
+            }
+        }
+
+        // Filter variants
+        function filterVariants(filter) {
+            const cards = document.querySelectorAll('.variant-card');
+            cards.forEach(card => {
+                const nameElement = card.querySelector('.variant-name');
+                if (!nameElement) return;
+                
+                const name = nameElement.textContent.toLowerCase();
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else if (filter === 'pure_wallet' && name.includes('pure wallet')) {
+                    card.style.display = 'block';
+                } else if (filter === 'bronze' && name.includes('bronze')) {
+                    card.style.display = 'block';
+                } else if (filter === 'silver' && name.includes('silver')) {
+                    card.style.display = 'block';
+                } else if (filter === 'gold' && name.includes('gold')) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Show add variant modal
+        function showAddVariantModal() {
+            document.getElementById('addVariantModal').style.display = 'flex';
+            // Pre-fill prize pool percentage
+            const prizePool = document.getElementById('prizePool').value;
+            // Focus on name field
+            setTimeout(() => {
+                document.getElementById('newVariantName').focus();
+            }, 100);
+        }
+
+        // Close add variant modal
+        function closeAddVariantModal() {
+            document.getElementById('addVariantModal').style.display = 'none';
+            // Clear form
+            document.getElementById('newVariantName').value = '';
+            document.getElementById('newVariantEntryFee').value = '';
+            document.getElementById('newVariantMaxParticipants').value = '';
+            document.getElementById('newVariantTradingStyle').value = 'pure_wallet';
+            document.getElementById('newVariantDuration').value = '7';
+            document.getElementById('newVariantEnabled').classList.add('active');
+        }
+
+        // Add new variant
+        async function addNewVariant() {
+            const name = document.getElementById('newVariantName').value.trim();
+            const entryFee = parseFloat(document.getElementById('newVariantEntryFee').value);
+            const maxParticipants = parseInt(document.getElementById('newVariantMaxParticipants').value);
+            const tradingStyle = document.getElementById('newVariantTradingStyle').value;
+            const duration = parseInt(document.getElementById('newVariantDuration').value);
+            const enabled = document.getElementById('newVariantEnabled').classList.contains('active');
+            
+            // Validation
+            if (!name) {
+                showAlert('Please enter a variant name', 'error');
+                return;
+            }
+            
+            if (!entryFee || entryFee <= 0) {
+                showAlert('Please enter a valid entry fee', 'error');
+                return;
+            }
+            
+            if (!maxParticipants || maxParticipants < 10) {
+                showAlert('Max participants must be at least 10', 'error');
+                return;
+            }
+            
+            // Create new variant
+            const newVariant = {
+                name: name,
+                enabled: enabled,
+                duration: duration,
+                entryFee: entryFee,
+                tradingStyle: tradingStyle,
+                maxParticipants: maxParticipants,
+                prizePoolPercentage: parseInt(document.getElementById('prizePool').value)
+            };
+            
+            // Add to configuration
+            if (!currentConfig.tournamentVariants) {
+                currentConfig.tournamentVariants = [];
+            }
+            currentConfig.tournamentVariants.push(newVariant);
+            
+            // Save and reload
+            await saveVariantChanges();
+            loadVariants();
+            closeAddVariantModal();
+            
+            showAlert(`Variant "${name}" added successfully!`, 'success');
+        }
+
+        // Deploy tournaments now
+        async function deployTournamentsNow() {
+            if (!confirm('Deploy tournaments immediately based on current configuration?')) {
+                return;
+            }
+            
+            showAlert('Deploying tournaments...', 'info');
+            
+            try {
+                // Get enabled variants
+                const enabledVariants = currentConfig.tournamentVariants.filter(v => v.enabled !== false);
+                
+                if (enabledVariants.length === 0) {
+                    showAlert('No enabled variants to deploy!', 'error');
+                    return;
+                }
+                
+                // Create tournament instances
+                const deploymentDate = new Date();
+                const deploymentResults = [];
+                
+                for (const variant of enabledVariants) {
+                    try {
+                        // Calculate dates
+                        const registrationStart = new Date(deploymentDate);
+                        registrationStart.setDate(registrationStart.getDate() + 3); // 3 days from now
+                        
+                        const startDate = new Date(registrationStart);
+                        startDate.setDate(startDate.getDate() + 4); // 4 days after registration
+                        
+                        const endDate = new Date(startDate);
+                        endDate.setDate(endDate.getDate() + variant.duration);
+                        
+                        // Create tournament
+                        const tournament = {
+                            tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
+                            entry_fee: variant.entryFee,
+                            max_participants: variant.maxParticipants,
+                            registration_start: registrationStart.toISOString(),
+                            registration_end: startDate.toISOString(),
+                            tournament_start: startDate.toISOString(),
+                            tournament_end: endDate.toISOString(),
+                            trading_style: variant.tradingStyle,
+                            prize_pool_percentage: variant.prizePoolPercentage,
+                            platform_fee_percentage: currentConfig.escrow.platformFeePercentage,
+                            status: 'upcoming',
+                            deployed_at: deploymentDate.toISOString(),
+                            deployed_by: window.adminAuth?.getCurrentWallet ? window.adminAuth.getCurrentWallet() : 'admin'
+                        };
+                        
+                        // Insert into database
+                        const { data, error } = await window.walletWarsAPI.supabase
+                            .from('tournament_instances')
+                            .insert(tournament)
+                            .select()
+                            .single();
+                            
+                        if (error) throw error;
+                        
+                        deploymentResults.push({
+                            success: true,
+                            variant: variant.name,
+                            tournamentId: data.id
+                        });
+                        
+                    } catch (error) {
+                        console.error(`Failed to deploy ${variant.name}:`, error);
+                        deploymentResults.push({
+                            success: false,
+                            variant: variant.name,
+                            error: error.message
+                        });
+                    }
+                }
+                
+                // Log deployment
+                await logDeployment(deploymentResults);
+                
+                // Show results
+                const successCount = deploymentResults.filter(r => r.success).length;
+                const failCount = deploymentResults.filter(r => !r.success).length;
+                
+                if (successCount > 0 && failCount === 0) {
+                    showAlert(`Successfully deployed ${successCount} tournaments!`, 'success');
+                } else if (successCount > 0 && failCount > 0) {
+                    showAlert(`Deployed ${successCount} tournaments, ${failCount} failed.`, 'warning');
+                } else {
+                    showAlert('Failed to deploy tournaments. Check console for details.', 'error');
+                }
+                
+                // Refresh monitoring
+                if (document.getElementById('monitoring-tab').classList.contains('active')) {
+                    loadMonitoringData();
+                }
+                
+            } catch (error) {
+                console.error('Deployment error:', error);
+                showAlert('Failed to deploy tournaments: ' + error.message, 'error');
+            }
+        }
+
+        // Log deployment to admin_logs
+        async function logDeployment(results) {
+            try {
+                const logEntry = {
+                    action: 'manual_deployment',
+                    admin_wallet: window.adminAuth?.getCurrentWallet ? window.adminAuth.getCurrentWallet() : 'admin',
+                    details: {
+                        timestamp: new Date().toISOString(),
+                        results: results,
+                        config_snapshot: {
+                            variants: currentConfig.tournamentVariants.filter(v => v.enabled !== false),
+                            platformFee: currentConfig.escrow.platformFeePercentage
+                        }
+                    },
+                    created_at: new Date().toISOString()
+                };
+                
+                await window.walletWarsAPI.supabase
+                    .from('admin_logs')
+                    .insert(logEntry);
+                    
+            } catch (error) {
+                console.error('Failed to log deployment:', error);
+            }
+        }
+
+        // Update schedule preview
+        function updateSchedulePreview() {
+            const container = document.getElementById('schedulePreview');
+            if (!container) return;
+            
+            const tournamentsPerDay = parseInt(document.getElementById('tournamentsPerDay').value);
+            
+            // Get selected days
+            const selectedDays = [];
+            if (document.getElementById('deployMonday').checked) selectedDays.push('Monday');
+            if (document.getElementById('deployTuesday').checked) selectedDays.push('Tuesday');
+            if (document.getElementById('deployWednesday').checked) selectedDays.push('Wednesday');
+            if (document.getElementById('deployThursday').checked) selectedDays.push('Thursday');
+            if (document.getElementById('deployFriday').checked) selectedDays.push('Friday');
+            
+            const totalPerWeek = selectedDays.length * tournamentsPerDay;
+            
+            container.innerHTML
