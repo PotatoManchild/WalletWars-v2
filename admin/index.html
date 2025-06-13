@@ -33,6 +33,41 @@
             box-sizing: border-box;
         }
 
+        /* Code block styling to prevent bleeding */
+        pre, code {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: #e2e8f0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        pre {
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        /* Ensure long strings don't overflow */
+        .variant-card,
+        .deployment-item,
+        .control-panel,
+        .modal {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Fix for potentially long wallet addresses */
+        .wallet-address {
+            font-family: monospace;
+            font-size: 0.875rem;
+            word-break: break-all;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
             background: #0a0a0a;
@@ -817,6 +852,11 @@
                 display: block;
             }
         }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -1192,6 +1232,16 @@
         let deploymentManager = null;
         let isDirty = false;
 
+        // HTML escape function to prevent code bleeding
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
         // Persistence helper class
         class ConfigPersistence {
             static async saveToDatabase(config) {
@@ -1310,6 +1360,8 @@
                 updateSchedulePreview();
             } else if (tabName === 'history') {
                 loadDeploymentHistory();
+            } else if (tabName === 'variants') {
+                loadVariants();
             }
         }
 
@@ -1452,25 +1504,212 @@
             const container = document.getElementById('variantsList');
             if (!container) return;
             
-            container.innerHTML = `
-                <div class="stats-grid" style="margin-bottom: 1rem;">
-                    <div class="detail-item">
-                        <span class="detail-label">Deployments per week</span>
-                        <span class="detail-value">${selectedDays.length}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Tournaments per deployment</span>
-                        <span class="detail-value">${tournamentsPerDay}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Total tournaments per week</span>
-                        <span class="detail-value">${totalPerWeek}</span>
+            container.innerHTML = '';
+            
+            if (currentConfig && currentConfig.tournamentVariants) {
+                currentConfig.tournamentVariants.forEach((variant, index) => {
+                    const variantCard = createVariantCard(variant, index);
+                    container.appendChild(variantCard);
+                });
+            }
+        }
+
+        // Create variant card
+        function createVariantCard(variant, index) {
+            const card = document.createElement('div');
+            card.className = 'variant-card';
+            card.innerHTML = `
+                <div class="variant-header">
+                    <h3 class="variant-name">${escapeHtml(variant.name)}</h3>
+                    <div class="variant-actions">
+                        <button class="btn btn-danger btn-small" onclick="deleteVariant(${index})">
+                            🗑️ Delete
+                        </button>
+                        <div class="toggle-group">
+                            <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
+                                 onclick="toggleVariant(${index})"></div>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <strong>Deployment Days:</strong> ${selectedDays.join(', ') || 'None selected'}
+                <div class="variant-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Entry Fee</span>
+                        <span class="detail-value">${variant.entryFee} SOL</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Max Players</span>
+                        <input type="number" class="control-input" value="${variant.maxParticipants}" 
+                               min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Trading Style</span>
+                        <span class="detail-value">${escapeHtml(variant.tradingStyle.replace('_', ' ').toUpperCase())}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Duration</span>
+                        <span class="detail-value">${variant.duration} days</span>
+                    </div>
                 </div>
             `;
+            return card;
+        }
+
+        // Toggle variant
+        function toggleVariant(index) {
+            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
+                const variant = currentConfig.tournamentVariants[index];
+                variant.enabled = variant.enabled === false ? true : false;
+                loadVariants();
+                isDirty = true;
+                
+                // Auto-save variant changes
+                saveVariantChanges();
+            }
+        }
+
+        // Delete variant
+        async function deleteVariant(index) {
+            const variant = currentConfig.tournamentVariants[index];
+            if (!confirm(`Delete variant "${variant.name}"? This action cannot be undone.`)) {
+                return;
+            }
+            
+            // Remove from array
+            currentConfig.tournamentVariants.splice(index, 1);
+            
+            // Reload UI
+            loadVariants();
+            
+            // Save changes
+            await saveVariantChanges();
+            showAlert(`Variant "${variant.name}" deleted successfully!`, 'success');
+        }
+
+        // Update variant capacity
+        function updateVariantCapacity(index, value) {
+            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
+                currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
+                isDirty = true;
+                
+                // Debounce auto-save (wait 1 second after typing stops)
+                clearTimeout(window.capacitySaveTimeout);
+                window.capacitySaveTimeout = setTimeout(() => {
+                    saveVariantChanges();
+                }, 1000);
+            }
+        }
+
+        // Save variant changes
+        async function saveVariantChanges() {
+            // Apply to window config
+            window.TOURNAMENT_CONFIG = currentConfig;
+            
+            // Save to database
+            const result = await ConfigPersistence.saveToDatabase(currentConfig);
+            
+            if (result.success) {
+                showAlert('Tournament variants saved!', 'success');
+                isDirty = false;
+            } else {
+                showAlert('Failed to save variants to database: ' + result.error, 'error');
+            }
+        }
+
+        // Filter variants
+        function filterVariants(filter) {
+            const cards = document.querySelectorAll('.variant-card');
+            cards.forEach(card => {
+                const nameElement = card.querySelector('.variant-name');
+                if (!nameElement) return;
+                
+                const name = nameElement.textContent.toLowerCase();
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else if (filter === 'pure_wallet' && name.includes('pure wallet')) {
+                    card.style.display = 'block';
+                } else if (filter === 'bronze' && name.includes('bronze')) {
+                    card.style.display = 'block';
+                } else if (filter === 'silver' && name.includes('silver')) {
+                    card.style.display = 'block';
+                } else if (filter === 'gold' && name.includes('gold')) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Show add variant modal
+        function showAddVariantModal() {
+            document.getElementById('addVariantModal').style.display = 'flex';
+            // Pre-fill prize pool percentage
+            const prizePool = document.getElementById('prizePool').value;
+            // Focus on name field
+            setTimeout(() => {
+                document.getElementById('newVariantName').focus();
+            }, 100);
+        }
+
+        // Close add variant modal
+        function closeAddVariantModal() {
+            document.getElementById('addVariantModal').style.display = 'none';
+            // Clear form
+            document.getElementById('newVariantName').value = '';
+            document.getElementById('newVariantEntryFee').value = '';
+            document.getElementById('newVariantMaxParticipants').value = '';
+            document.getElementById('newVariantTradingStyle').value = 'pure_wallet';
+            document.getElementById('newVariantDuration').value = '7';
+            document.getElementById('newVariantEnabled').classList.add('active');
+        }
+
+        // Add new variant
+        async function addNewVariant() {
+            const name = document.getElementById('newVariantName').value.trim();
+            const entryFee = parseFloat(document.getElementById('newVariantEntryFee').value);
+            const maxParticipants = parseInt(document.getElementById('newVariantMaxParticipants').value);
+            const tradingStyle = document.getElementById('newVariantTradingStyle').value;
+            const duration = parseInt(document.getElementById('newVariantDuration').value);
+            const enabled = document.getElementById('newVariantEnabled').classList.contains('active');
+            
+            // Validation
+            if (!name) {
+                showAlert('Please enter a variant name', 'error');
+                return;
+            }
+            
+            if (!entryFee || entryFee <= 0) {
+                showAlert('Please enter a valid entry fee', 'error');
+                return;
+            }
+            
+            if (!maxParticipants || maxParticipants < 10) {
+                showAlert('Max participants must be at least 10', 'error');
+                return;
+            }
+            
+            // Create new variant
+            const newVariant = {
+                name: name,
+                enabled: enabled,
+                duration: duration,
+                entryFee: entryFee,
+                tradingStyle: tradingStyle,
+                maxParticipants: maxParticipants,
+                prizePoolPercentage: parseInt(document.getElementById('prizePool').value)
+            };
+            
+            // Add to configuration
+            if (!currentConfig.tournamentVariants) {
+                currentConfig.tournamentVariants = [];
+            }
+            currentConfig.tournamentVariants.push(newVariant);
+            
+            // Save and reload
+            await saveVariantChanges();
+            loadVariants();
+            closeAddVariantModal();
+            
+            showAlert(`Variant "${name}" added successfully!`, 'success');
         }
 
         // Save deployment schedule
@@ -1725,7 +1964,7 @@
                                         <div style="margin-top: 0.5rem; display: grid; gap: 0.5rem;">
                                             ${t.entries.slice(0, 5).map(e => `
                                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                                    <span style="font-family: monospace; font-size: 0.875rem;">
+                                                    <span class="wallet-address">
                                                         ${e.wallet_address.substring(0, 6)}...${e.wallet_address.substring(e.wallet_address.length - 4)}
                                                     </span>
                                                     <span style="color: #9ca3af; font-size: 0.875rem;">
@@ -1880,290 +2119,6 @@
             updateSchedulePreview();
         }
 
-        // Initialize on DOM ready
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Admin Control Center initializing...');
-            
-            // Load saved configuration from database FIRST
-            const savedConfig = await ConfigPersistence.loadFromDatabase();
-            if (savedConfig) {
-                // Apply saved config to window.TOURNAMENT_CONFIG
-                window.TOURNAMENT_CONFIG = { ...window.TOURNAMENT_CONFIG, ...savedConfig };
-                currentConfig = savedConfig;
-                console.log('📋 Applied saved configuration from database');
-            } else {
-                // Load current configuration from window
-                loadCurrentConfig();
-            }
-            
-            // Update UI with loaded values
-            updateUIFromConfig();
-            
-            // Initialize deployment manager
-            if (window.EnhancedTournamentDeploymentManager) {
-                deploymentManager = new window.EnhancedTournamentDeploymentManager();
-            }
-            
-            // Check connections
-            checkConnections();
-            
-            // Load initial data
-            loadVariants();
-            updateSchedulePreview();
-            loadMonitoringData();
-            
-            // Set up auto-save reminder
-            window.addEventListener('beforeunload', (e) => {
-                if (isDirty) {
-                    e.preventDefault();
-                    e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-                }
-            });
-
-            // Update listeners
-            document.getElementById('platformFee').addEventListener('input', (e) => {
-                document.getElementById('platformFeePreview').textContent = e.target.value + '%';
-                isDirty = true;
-            });
-
-            document.getElementById('tournamentsPerDay').addEventListener('change', updateSchedulePreview);
-            
-            // Deployment day checkboxes
-            ['deployMonday', 'deployTuesday', 'deployWednesday', 'deployThursday', 'deployFriday'].forEach(id => {
-                const checkbox = document.getElementById(id);
-                if (checkbox) {
-                    checkbox.addEventListener('change', () => {
-                        updateSchedulePreview();
-                        isDirty = true;
-                    });
-                }
-            });
-
-            // Toggle for new variant modal
-            document.getElementById('newVariantEnabled').addEventListener('click', function() {
-                this.classList.toggle('active');
-            });
-
-            // Refresh monitoring data periodically
-            setInterval(() => {
-                if (document.getElementById('monitoring-tab').classList.contains('active')) {
-                    loadMonitoringData();
-                }
-            }, 30000); // Every 30 seconds
-        });
-    </script>
-
-    <!-- Admin Auth MUST be last! -->
-    <script src="admin-auth.js"></script>
-</body>
-</html> = '';
-            
-            if (currentConfig && currentConfig.tournamentVariants) {
-                currentConfig.tournamentVariants.forEach((variant, index) => {
-                    const variantCard = createVariantCard(variant, index);
-                    container.appendChild(variantCard);
-                });
-            }
-        }
-
-        // Create variant card
-        function createVariantCard(variant, index) {
-            const card = document.createElement('div');
-            card.className = 'variant-card';
-            card.innerHTML = `
-                <div class="variant-header">
-                    <h3 class="variant-name">${variant.name}</h3>
-                    <div class="variant-actions">
-                        <button class="btn btn-danger btn-small" onclick="deleteVariant(${index})">
-                            🗑️ Delete
-                        </button>
-                        <div class="toggle-group">
-                            <div class="toggle-switch ${variant.enabled !== false ? 'active' : ''}" 
-                                 onclick="toggleVariant(${index})"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="variant-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Entry Fee</span>
-                        <span class="detail-value">${variant.entryFee} SOL</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Max Players</span>
-                        <input type="number" class="control-input" value="${variant.maxParticipants}" 
-                               min="10" max="1000" onchange="updateVariantCapacity(${index}, this.value)">
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Trading Style</span>
-                        <span class="detail-value">${variant.tradingStyle.replace('_', ' ').toUpperCase()}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Duration</span>
-                        <span class="detail-value">${variant.duration} days</span>
-                    </div>
-                </div>
-            `;
-            return card;
-        }
-
-        // Toggle variant
-        function toggleVariant(index) {
-            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
-                const variant = currentConfig.tournamentVariants[index];
-                variant.enabled = variant.enabled === false ? true : false;
-                loadVariants();
-                isDirty = true;
-                
-                // Auto-save variant changes
-                saveVariantChanges();
-            }
-        }
-
-        // Delete variant
-        async function deleteVariant(index) {
-            const variant = currentConfig.tournamentVariants[index];
-            if (!confirm(`Delete variant "${variant.name}"? This action cannot be undone.`)) {
-                return;
-            }
-            
-            // Remove from array
-            currentConfig.tournamentVariants.splice(index, 1);
-            
-            // Reload UI
-            loadVariants();
-            
-            // Save changes
-            await saveVariantChanges();
-            showAlert(`Variant "${variant.name}" deleted successfully!`, 'success');
-        }
-
-        // Update variant capacity
-        function updateVariantCapacity(index, value) {
-            if (currentConfig.tournamentVariants && currentConfig.tournamentVariants[index]) {
-                currentConfig.tournamentVariants[index].maxParticipants = parseInt(value);
-                isDirty = true;
-                
-                // Debounce auto-save (wait 1 second after typing stops)
-                clearTimeout(window.capacitySaveTimeout);
-                window.capacitySaveTimeout = setTimeout(() => {
-                    saveVariantChanges();
-                }, 1000);
-            }
-        }
-
-        // Save variant changes
-        async function saveVariantChanges() {
-            // Apply to window config
-            window.TOURNAMENT_CONFIG = currentConfig;
-            
-            // Save to database
-            const result = await ConfigPersistence.saveToDatabase(currentConfig);
-            
-            if (result.success) {
-                showAlert('Tournament variants saved!', 'success');
-                isDirty = false;
-            } else {
-                showAlert('Failed to save variants to database: ' + result.error, 'error');
-            }
-        }
-
-        // Filter variants
-        function filterVariants(filter) {
-            const cards = document.querySelectorAll('.variant-card');
-            cards.forEach(card => {
-                const nameElement = card.querySelector('.variant-name');
-                if (!nameElement) return;
-                
-                const name = nameElement.textContent.toLowerCase();
-                if (filter === 'all') {
-                    card.style.display = 'block';
-                } else if (filter === 'pure_wallet' && name.includes('pure wallet')) {
-                    card.style.display = 'block';
-                } else if (filter === 'bronze' && name.includes('bronze')) {
-                    card.style.display = 'block';
-                } else if (filter === 'silver' && name.includes('silver')) {
-                    card.style.display = 'block';
-                } else if (filter === 'gold' && name.includes('gold')) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        }
-
-        // Show add variant modal
-        function showAddVariantModal() {
-            document.getElementById('addVariantModal').style.display = 'flex';
-            // Pre-fill prize pool percentage
-            const prizePool = document.getElementById('prizePool').value;
-            // Focus on name field
-            setTimeout(() => {
-                document.getElementById('newVariantName').focus();
-            }, 100);
-        }
-
-        // Close add variant modal
-        function closeAddVariantModal() {
-            document.getElementById('addVariantModal').style.display = 'none';
-            // Clear form
-            document.getElementById('newVariantName').value = '';
-            document.getElementById('newVariantEntryFee').value = '';
-            document.getElementById('newVariantMaxParticipants').value = '';
-            document.getElementById('newVariantTradingStyle').value = 'pure_wallet';
-            document.getElementById('newVariantDuration').value = '7';
-            document.getElementById('newVariantEnabled').classList.add('active');
-        }
-
-        // Add new variant
-        async function addNewVariant() {
-            const name = document.getElementById('newVariantName').value.trim();
-            const entryFee = parseFloat(document.getElementById('newVariantEntryFee').value);
-            const maxParticipants = parseInt(document.getElementById('newVariantMaxParticipants').value);
-            const tradingStyle = document.getElementById('newVariantTradingStyle').value;
-            const duration = parseInt(document.getElementById('newVariantDuration').value);
-            const enabled = document.getElementById('newVariantEnabled').classList.contains('active');
-            
-            // Validation
-            if (!name) {
-                showAlert('Please enter a variant name', 'error');
-                return;
-            }
-            
-            if (!entryFee || entryFee <= 0) {
-                showAlert('Please enter a valid entry fee', 'error');
-                return;
-            }
-            
-            if (!maxParticipants || maxParticipants < 10) {
-                showAlert('Max participants must be at least 10', 'error');
-                return;
-            }
-            
-            // Create new variant
-            const newVariant = {
-                name: name,
-                enabled: enabled,
-                duration: duration,
-                entryFee: entryFee,
-                tradingStyle: tradingStyle,
-                maxParticipants: maxParticipants,
-                prizePoolPercentage: parseInt(document.getElementById('prizePool').value)
-            };
-            
-            // Add to configuration
-            if (!currentConfig.tournamentVariants) {
-                currentConfig.tournamentVariants = [];
-            }
-            currentConfig.tournamentVariants.push(newVariant);
-            
-            // Save and reload
-            await saveVariantChanges();
-            loadVariants();
-            closeAddVariantModal();
-            
-            showAlert(`Variant "${name}" added successfully!`, 'success');
-        }
-
         // Deploy tournaments now
         async function deployTournamentsNow() {
             if (!confirm('Deploy tournaments immediately based on current configuration?')) {
@@ -2308,4 +2263,101 @@
             
             const totalPerWeek = selectedDays.length * tournamentsPerDay;
             
-            container.innerHTML
+            container.innerHTML = `
+                <div class="stats-grid" style="margin-bottom: 1rem;">
+                    <div class="detail-item">
+                        <span class="detail-label">Deployments per week</span>
+                        <span class="detail-value">${selectedDays.length}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Tournaments per deployment</span>
+                        <span class="detail-value">${tournamentsPerDay}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total tournaments per week</span>
+                        <span class="detail-value">${totalPerWeek}</span>
+                    </div>
+                </div>
+                <div>
+                    <strong>Deployment Days:</strong> ${selectedDays.join(', ') || 'None selected'}
+                </div>
+            `;
+        }
+
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Admin Control Center initializing...');
+            
+            // Load saved configuration from database FIRST
+            const savedConfig = await ConfigPersistence.loadFromDatabase();
+            if (savedConfig) {
+                // Apply saved config to window.TOURNAMENT_CONFIG
+                window.TOURNAMENT_CONFIG = { ...window.TOURNAMENT_CONFIG, ...savedConfig };
+                currentConfig = savedConfig;
+                console.log('📋 Applied saved configuration from database');
+            } else {
+                // Load current configuration from window
+                loadCurrentConfig();
+            }
+            
+            // Update UI with loaded values
+            updateUIFromConfig();
+            
+            // Initialize deployment manager
+            if (window.EnhancedTournamentDeploymentManager) {
+                deploymentManager = new window.EnhancedTournamentDeploymentManager();
+            }
+            
+            // Check connections
+            checkConnections();
+            
+            // Load initial data
+            loadVariants();
+            updateSchedulePreview();
+            loadMonitoringData();
+            
+            // Set up auto-save reminder
+            window.addEventListener('beforeunload', (e) => {
+                if (isDirty) {
+                    e.preventDefault();
+                    e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                }
+            });
+
+            // Update listeners
+            document.getElementById('platformFee').addEventListener('input', (e) => {
+                document.getElementById('platformFeePreview').textContent = e.target.value + '%';
+                isDirty = true;
+            });
+
+            document.getElementById('tournamentsPerDay').addEventListener('change', updateSchedulePreview);
+            
+            // Deployment day checkboxes
+            ['deployMonday', 'deployTuesday', 'deployWednesday', 'deployThursday', 'deployFriday'].forEach(id => {
+                const checkbox = document.getElementById(id);
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        updateSchedulePreview();
+                        isDirty = true;
+                    });
+                }
+            });
+
+            // Toggle for new variant modal
+            document.getElementById('newVariantEnabled').addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+
+            // Refresh monitoring data periodically
+            setInterval(() => {
+                if (document.getElementById('monitoring-tab').classList.contains('active')) {
+                    loadMonitoringData();
+                }
+            }, 30000); // Every 30 seconds
+        });
+    </script>
+
+    <!-- Admin Auth MUST be last! -->
+    <script src="admin-auth.js"></script>
+</body>
+</html>
