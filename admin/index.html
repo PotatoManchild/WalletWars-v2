@@ -11,8 +11,20 @@
     <!-- Solana Web3.js -->
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     
-    <!-- Buffer polyfill for browser -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+  <script>
+  // Load Buffer polyfill for browser
+  if (typeof window !== 'undefined' && !window.Buffer) {
+    window.global = window;
+  }
+</script>
+<script src="https://bundle.run/buffer@6.0.3"></script>
+<script>
+  // Ensure Buffer is available globally
+  if (typeof window !== 'undefined' && window.Buffer) {
+    window.Buffer = window.Buffer;
+    console.log('✅ Buffer polyfill loaded successfully');
+  }
+</script>
     
     <!-- Anchor (if available) -->
     <script src="https://unpkg.com/@project-serum/anchor@0.25.0/dist/browser/index.js"></script>
