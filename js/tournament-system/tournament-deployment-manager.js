@@ -150,6 +150,8 @@ class EnhancedTournamentDeploymentManager {
                 entry_fee: variant.entryFee,
                 max_participants: variant.maxParticipants,
                 status: 'upcoming',
+                start_time: startDate.toISOString(),  // Changed from tournament_start
+                end_time: endTime.toISOString(),       // Added this field
                 deployed_at: new Date().toISOString(),
                 deployed_by: this.wallet?.publicKey?.toString() || 'automation'
             };
