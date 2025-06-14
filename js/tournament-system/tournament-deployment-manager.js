@@ -1,8 +1,8 @@
 // tournament-deployment-manager-enhanced.js
-// Enhanced deployment manager with TEST MODE integration
-// Creates tournaments both on-chain AND in database (when not in test mode)
+// FIXED VERSION - Schema-aligned deployment manager
+// Creates tournaments both on-chain AND in database with correct field names
 
-console.log('📅 Loading Enhanced Tournament Deployment Manager...');
+console.log('📅 Loading Enhanced Tournament Deployment Manager (FIXED)...');
 
 class EnhancedTournamentDeploymentManager {
     constructor() {
@@ -20,7 +20,7 @@ class EnhancedTournamentDeploymentManager {
             failedAttempts: 0
         };
         
-        console.log('✅ Enhanced Tournament Deployment Manager initialized');
+        console.log('✅ Enhanced Tournament Deployment Manager initialized (FIXED)');
         
         // Check if we're in test mode
         if (this.testMode && this.testMode.isEnabled()) {
@@ -137,27 +137,31 @@ class EnhancedTournamentDeploymentManager {
                 mock: escrowResult.mock || false
             });
             
-            // Step 2: Get or create template in database
+            // Step 2: Get or create template in database (FIXED)
             const template = await this.getOrCreateTemplate(variant);
             if (!template) {
                 throw new Error('Failed to get/create template');
             }
             
-            // Step 3: Create tournament instance in database
-            // Use EXACTLY the same structure as the working deployTournamentsDatabaseOnly
+            // Step 3: Create tournament instance in database (FIXED SCHEMA)
             const dbTournament = {
                 tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
                 entry_fee: variant.entryFee,
                 max_participants: variant.maxParticipants,
                 status: 'upcoming',
-                start_time: startDate.toISOString(),  // Changed from tournament_start
-                end_time: endTime.toISOString(),       // Added this field
-                deployed_at: new Date().toISOString(),
-                deployed_by: this.wallet?.publicKey?.toString() || 'automation'
+                start_time: startDate.toISOString(),
+                end_time: endTime.toISOString(),
+                // REMOVED: deployed_at - this column doesn't exist
+                // REMOVED: deployed_by - this column doesn't exist
+                // Add other fields that DO exist in your schema
+                registration_start: registrationOpens.toISOString(),
+                registration_end: registrationCloses.toISOString(),
+                trading_style: variant.tradingStyle || 'pure_wallet',
+                prize_pool_percentage: variant.prizePoolPercentage || 85,
+                platform_fee_percentage: this.config.escrow?.platformFeePercentage || 10
             };
             
-            // First, try minimal insert
-            console.log('📝 Attempting minimal tournament insert:', dbTournament);
+            console.log('📝 Attempting tournament insert with fixed schema:', dbTournament);
             
             const { data: dbInstance, error: dbError } = await window.walletWarsAPI.supabase
                 .from('tournament_instances')
@@ -166,32 +170,53 @@ class EnhancedTournamentDeploymentManager {
                 .single();
             
             if (dbError) {
-                console.error('❌ Minimal insert failed:', dbError);
-                console.error('Trying alternative approach...');
+                console.error('❌ Database insert failed:', dbError);
+                console.error('Tournament data:', dbTournament);
                 
-                // Alternative: Create without select
-                const { data: insertData, error: insertError } = await window.walletWarsAPI.supabase
-                    .from('tournament_instances')
-                    .insert(dbTournament);
-                    
-                if (insertError) {
-                    throw new Error(`Database error: ${insertError.message}`);
-                }
-                
-                // If insert worked but we don't have the data, create a mock response
-                const mockInstance = {
-                    id: 'temp_' + Date.now(),
-                    ...dbTournament,
-                    deployment_metadata: {
-                        tournamentId: tournamentId,
-                        tournamentPDA: escrowResult.tournamentPDA,
-                        escrowPDA: escrowResult.escrowPDA,
-                        mock: true
-                    }
+                // Try a minimal insert with only the most basic fields
+                console.log('🔄 Trying minimal insert...');
+                const minimalTournament = {
+                    tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
+                    entry_fee: variant.entryFee,
+                    max_participants: variant.maxParticipants,
+                    start_time: startDate.toISOString(),
+                    end_time: endTime.toISOString(),
+                    status: 'upcoming'
                 };
                 
-                console.log('✅ Tournament created (without returning data)');
-                return mockInstance;
+                const { data: minimalData, error: minimalError } = await window.walletWarsAPI.supabase
+                    .from('tournament_instances')
+                    .insert(minimalTournament)
+                    .select()
+                    .single();
+                    
+                if (minimalError) {
+                    throw new Error(`Database error (minimal): ${minimalError.message}`);
+                }
+                
+                console.log('✅ Minimal tournament created:', minimalData.id);
+                
+                // Try to update with additional metadata if possible
+                if (minimalData && minimalData.id) {
+                    const { error: updateError } = await window.walletWarsAPI.supabase
+                        .from('tournament_instances')
+                        .update({
+                            deployment_metadata: {
+                                tournamentId: tournamentId,
+                                tournamentPDA: escrowResult.tournamentPDA,
+                                escrowPDA: escrowResult.escrowPDA,
+                                mock: escrowResult.mock || false,
+                                deployedAt: new Date().toISOString()
+                            }
+                        })
+                        .eq('id', minimalData.id);
+                        
+                    if (updateError) {
+                        console.warn('⚠️ Could not update metadata:', updateError);
+                    }
+                }
+                
+                return minimalData;
             }
             
             console.log('✅ Tournament created in database:', dbInstance.id);
@@ -224,8 +249,6 @@ class EnhancedTournamentDeploymentManager {
                     console.warn('⚠️ Could not update metadata:', updateError);
                 }
             }
-            
-            console.log('✅ Tournament created in database:', dbInstance.id);
             
             // Step 4: Schedule lifecycle events
             await this.scheduleLifecycleEvents(dbInstance);
@@ -263,33 +286,89 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Deploy tournaments for a specific date
+     * Get or create tournament template - FIXED SCHEMA
      */
-    async deployTournamentsForDate(targetDate) {
-        let createdCount = 0;
-        
-        console.log(`📅 Deploying tournaments for ${targetDate.toLocaleDateString()}...`);
-        
-        // Show test mode warning if active
-        if (this.testMode && this.testMode.isEnabled()) {
-            console.log('🧪 TEST MODE: Tournaments will be created as mocks');
-        }
-        
-        for (const variant of this.config.tournamentVariants) {
-            const exists = await this.tournamentExistsExact(targetDate, variant);
+    async getOrCreateTemplate(variant) {
+        try {
+            // First, try to find existing template by name
+            const { data: existing, error: fetchError } = await window.walletWarsAPI.supabase
+                .from('tournament_templates')
+                .select('*')
+                .eq('name', variant.name)
+                .maybeSingle();
             
-            if (!exists) {
-                const created = await this.createTournamentWithEscrow(targetDate, variant);
-                if (created) {
-                    createdCount++;
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Delay between creations
-                }
-            } else {
-                console.log(`✅ Tournament already exists: ${variant.name} for ${targetDate.toLocaleDateString()}`);
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('❌ Error fetching template:', fetchError);
+                return null;
             }
+            
+            if (existing) {
+                console.log(`✅ Found existing template: ${variant.name}`);
+                return existing;
+            }
+            
+            // Create new template with FIXED schema
+            console.log(`📝 Creating new template: ${variant.name}`);
+            
+            // Use only fields that actually exist in the tournament_templates table
+            const templateData = {
+                name: variant.name.substring(0, 50),
+                tournament_type: 'weekly',
+                trading_style: variant.tradingStyle || 'pure_wallet',
+                start_day: 'variable',
+                entry_fee: variant.entryFee || 0.01,
+                max_participants: variant.maxParticipants || 100,
+                // REMOVED: min_participants - this column doesn't exist
+                prize_pool_percentage: variant.prizePoolPercentage || 85,
+                is_active: true
+                // REMOVED: created_at - auto-generated
+            };
+            
+            console.log('📋 Template data to insert (FIXED):', templateData);
+            
+            const { data, error } = await window.walletWarsAPI.supabase
+                .from('tournament_templates')
+                .insert(templateData)
+                .select('*')
+                .single();
+            
+            if (error) {
+                console.error('❌ Failed to create template:', error);
+                console.error('Template data:', templateData);
+                
+                // Return a fallback template to continue deployment
+                console.warn('⚠️ Using fallback template to continue deployment');
+                return {
+                    id: 'temp_' + Date.now(),
+                    name: variant.name,
+                    tournament_type: 'weekly',
+                    trading_style: variant.tradingStyle || 'pure_wallet',
+                    entry_fee: variant.entryFee,
+                    max_participants: variant.maxParticipants,
+                    prize_pool_percentage: variant.prizePoolPercentage || 85,
+                    is_active: true
+                };
+            }
+            
+            console.log(`✅ Created new template: ${variant.name}`, data);
+            return data;
+            
+        } catch (error) {
+            console.error('❌ Error in getOrCreateTemplate:', error);
+            
+            // Return a temporary template to allow the process to continue
+            console.warn('⚠️ Using fallback template to continue deployment');
+            return {
+                id: 'temp_' + Date.now(),
+                name: variant.name,
+                tournament_type: 'weekly',
+                trading_style: variant.tradingStyle || 'pure_wallet',
+                entry_fee: variant.entryFee,
+                max_participants: variant.maxParticipants,
+                prize_pool_percentage: variant.prizePoolPercentage || 85,
+                is_active: true
+            };
         }
-        
-        return createdCount;
     }
     
     /**
@@ -352,17 +431,6 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Get deployment statistics
-     */
-    getStats() {
-        return {
-            ...this.stats,
-            testModeActive: this.testMode && this.testMode.isEnabled(),
-            escrowInitialized: !!this.escrowIntegration
-        };
-    }
-    
-    /**
      * Check if a specific tournament variant already exists
      */
     async tournamentExistsExact(startDate, variant) {
@@ -374,7 +442,7 @@ class EnhancedTournamentDeploymentManager {
             const { data, error } = await window.walletWarsAPI.supabase
                 .from('tournament_instances')
                 .select('id, tournament_name, start_time, deployment_metadata')
-                .ilike('tournament_name', `${variant.name}%`) // Use ilike for case-insensitive partial match
+                .ilike('tournament_name', `${variant.name}%`)
                 .gte('start_time', startWindow.toISOString())
                 .lte('start_time', endWindow.toISOString())
                 .not('status', 'eq', 'cancelled')
@@ -406,108 +474,23 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Get or create tournament template - FIXED
-     */
-    async getOrCreateTemplate(variant) {
-        try {
-            // First, try to find existing template by name
-            const { data: existing, error: fetchError } = await window.walletWarsAPI.supabase
-                .from('tournament_templates')
-                .select('*')
-                .eq('name', variant.name)
-                .maybeSingle(); // Use maybeSingle instead of single to avoid error if not found
-            
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                console.error('❌ Error fetching template:', fetchError);
-                return null;
-            }
-            
-            if (existing) {
-                console.log(`✅ Found existing template: ${variant.name}`);
-                return existing;
-            }
-            
-            // Create new template
-            console.log(`📝 Creating new template: ${variant.name}`);
-            
-            // Remove created_at as it might be auto-generated
-            const templateData = {
-                name: variant.name.substring(0, 50), // Ensure name isn't too long
-                tournament_type: 'weekly',
-                trading_style: variant.tradingStyle || 'pure_wallet',
-                start_day: 'variable',
-                entry_fee: variant.entryFee || 0.01,
-                max_participants: variant.maxParticipants || 100,
-                min_participants: variant.minParticipants || 10,
-                prize_pool_percentage: variant.prizePoolPercentage || 85,
-                is_active: true
-            };
-            
-            console.log('📋 Template data to insert:', templateData);
-            
-            const { data, error } = await window.walletWarsAPI.supabase
-                .from('tournament_templates')
-                .insert(templateData) // Don't use array wrapper
-                .select('*') // Select all fields
-                .single();
-            
-            if (error) {
-                console.error('❌ Failed to create template:', error);
-                console.error('Template data:', templateData);
-                
-                // If template creation fails, return a fake template just to continue
-                console.warn('⚠️ Using fallback template to continue deployment');
-                return {
-                    id: 'temp_' + Date.now(),
-                    name: variant.name,
-                    tournament_type: 'weekly',
-                    trading_style: variant.tradingStyle || 'pure_wallet',
-                    entry_fee: variant.entryFee,
-                    max_participants: variant.maxParticipants,
-                    min_participants: variant.minParticipants || 10,
-                    prize_pool_percentage: variant.prizePoolPercentage || 85,
-                    is_active: true
-                };
-            }
-            
-            console.log(`✅ Created new template: ${variant.name}`, data);
-            return data;
-            
-        } catch (error) {
-            console.error('❌ Error in getOrCreateTemplate:', error);
-            
-            // Return a temporary template to allow the process to continue
-            console.warn('⚠️ Using fallback template to continue deployment');
-            return {
-                id: 'temp_' + Date.now(),
-                name: variant.name,
-                tournament_type: 'weekly',
-                trading_style: variant.tradingStyle || 'pure_wallet',
-                entry_fee: variant.entryFee,
-                max_participants: variant.maxParticipants,
-                min_participants: variant.minParticipants || 10,
-                prize_pool_percentage: variant.prizePoolPercentage || 85,
-                is_active: true
-            };
-        }
-    }
-    
-    /**
      * Schedule automated lifecycle transitions
      */
     async scheduleLifecycleEvents(tournament) {
         const now = new Date();
         
         // Schedule registration open
-        const registrationOpensAt = new Date(tournament.registration_opens_at);
-        if (registrationOpensAt > now) {
-            const delay = registrationOpensAt - now;
-            setTimeout(async () => {
-                if (window.tournamentLifecycleManager) {
-                    await window.tournamentLifecycleManager.openRegistration(tournament.id);
-                }
-            }, delay);
-            console.log(`⏰ Scheduled registration open in ${Math.round(delay / 1000 / 60)} minutes`);
+        if (tournament.registration_start) {
+            const registrationOpensAt = new Date(tournament.registration_start);
+            if (registrationOpensAt > now) {
+                const delay = registrationOpensAt - now;
+                setTimeout(async () => {
+                    if (window.tournamentLifecycleManager) {
+                        await window.tournamentLifecycleManager.openRegistration(tournament.id);
+                    }
+                }, delay);
+                console.log(`⏰ Scheduled registration open in ${Math.round(delay / 1000 / 60)} minutes`);
+            }
         }
         
         // Schedule tournament start
@@ -534,56 +517,44 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Start automated deployment (NOT RECOMMENDED IN TEST MODE)
+     * Get deployment statistics
      */
-    async startAutomatedDeployment() {
-        if (this.testMode && this.testMode.isEnabled()) {
-            const confirm = window.confirm(
-                '⚠️ WARNING: Starting automated deployment in TEST MODE!\n\n' +
-                'This will create many MOCK tournaments.\n' +
-                'Are you sure you want to proceed?'
-            );
-            
-            if (!confirm) {
-                console.log('❌ Automated deployment cancelled');
-                return;
-            }
-        }
-        
-        console.log('🚀 Starting automated tournament deployment...');
-        
-        // Run initial deployment
-        await this.deployUpcomingTournaments();
-        
-        // Schedule daily checks
-        this.deploymentSchedule = setInterval(async () => {
-            await this.deployUpcomingTournaments();
-        }, 24 * 60 * 60 * 1000); // Daily
-        
-        console.log('✅ Automated deployment active');
+    getStats() {
+        return {
+            ...this.stats,
+            testModeActive: this.testMode && this.testMode.isEnabled(),
+            escrowInitialized: !!this.escrowIntegration
+        };
     }
     
     /**
-     * Deploy upcoming tournaments (limited version for testing)
+     * Deploy tournaments for a specific date
      */
-    async deployUpcomingTournaments() {
-        console.log('📅 Checking tournament deployment needs...');
+    async deployTournamentsForDate(targetDate) {
+        let createdCount = 0;
         
-        // In test mode, limit to just a few tournaments
-        const maxDates = this.testMode && this.testMode.isEnabled() ? 2 : 8;
+        console.log(`📅 Deploying tournaments for ${targetDate.toLocaleDateString()}...`);
         
-        const deploymentDates = this.getUpcomingDeploymentDates().slice(0, maxDates);
-        let totalCreated = 0;
-        
-        for (const date of deploymentDates) {
-            console.log(`📅 Processing date: ${date.toLocaleDateString()}`);
-            
-            const created = await this.deployTournamentsForDate(date);
-            totalCreated += created;
+        // Show test mode warning if active
+        if (this.testMode && this.testMode.isEnabled()) {
+            console.log('🧪 TEST MODE: Tournaments will be created as mocks');
         }
         
-        console.log(`✅ Deployment complete - Created ${totalCreated} tournaments`);
-        console.log('📊 Stats:', this.getStats());
+        for (const variant of this.config.tournamentVariants) {
+            const exists = await this.tournamentExistsExact(targetDate, variant);
+            
+            if (!exists) {
+                const created = await this.createTournamentWithEscrow(targetDate, variant);
+                if (created) {
+                    createdCount++;
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Delay between creations
+                }
+            } else {
+                console.log(`✅ Tournament already exists: ${variant.name} for ${targetDate.toLocaleDateString()}`);
+            }
+        }
+        
+        return createdCount;
     }
     
     /**
@@ -617,8 +588,4 @@ class EnhancedTournamentDeploymentManager {
 // Make it available globally
 window.EnhancedTournamentDeploymentManager = EnhancedTournamentDeploymentManager;
 
-// Create instance but don't auto-start
-console.log('✅ Enhanced Tournament Deployment Manager loaded!');
-console.log('📋 Create instance with: new EnhancedTournamentDeploymentManager()');
-console.log('🔐 Initialize escrow with: manager.initializeEscrow(wallet)');
-console.log('🧪 Create test tournament with: manager.createTestTournament()');
+console.log('✅ Enhanced Tournament Deployment Manager (FIXED) loaded!');
