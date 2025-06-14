@@ -71,7 +71,7 @@ class EnhancedTournamentDeploymentManager {
         console.log(`📋 Creating enhanced tournament: ${variant.name}`);
         
         try {
-            // Generate unique tournament ID
+            // Generate unique tournament ID - SHORTER VERSION
             const tournamentId = this.generateTournamentId(startDate, variant);
             
             // Calculate times
@@ -154,7 +154,7 @@ class EnhancedTournamentDeploymentManager {
                 registration_closes: registrationCloses.toISOString(),
                 participant_count: 0,
                 total_prize_pool: 0,
-                min_participants: variant.minParticipants,
+                min_participants: variant.minParticipants || 10,
                 registration_opens_at: registrationOpens.toISOString(),
                 registration_closes_at: registrationCloses.toISOString(),
                 deployment_metadata: {
@@ -212,13 +212,18 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Generate unique tournament ID
+     * Generate unique tournament ID - FIXED to be shorter
      */
     generateTournamentId(startDate, variant) {
         const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
-        const variantStr = variant.name.toLowerCase().replace(/\s+/g, '_').substring(0, 20);
+        // Make variant string shorter - remove special characters and limit length
+        const variantStr = variant.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '') // Remove all non-alphanumeric
+            .substring(0, 10); // Limit to 10 chars
         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `${variantStr}_${dateStr}_${random}`;
+        // Create shorter tournament ID
+        return `${variantStr}_${dateStr.substring(2)}_${random}`; // Use only last 6 digits of date
     }
     
     /**
@@ -329,10 +334,11 @@ class EnhancedTournamentDeploymentManager {
             const startWindow = new Date(startDate.getTime() - 60 * 60 * 1000);
             const endWindow = new Date(startDate.getTime() + 60 * 60 * 1000);
             
+            // Look for tournaments with the same name in the time window
             const { data, error } = await window.walletWarsAPI.supabase
                 .from('tournament_instances')
                 .select('id, tournament_name, start_time, deployment_metadata')
-                .eq('tournament_name', variant.name)
+                .ilike('tournament_name', `${variant.name}%`) // Use ilike for case-insensitive partial match
                 .gte('start_time', startWindow.toISOString())
                 .lte('start_time', endWindow.toISOString())
                 .not('status', 'eq', 'cancelled')
@@ -364,32 +370,41 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Get or create tournament template
+     * Get or create tournament template - FIXED
      */
     async getOrCreateTemplate(variant) {
         try {
-            // Check if template exists
-            const { data: existing } = await window.walletWarsAPI.supabase
+            // First, try to find existing template by name
+            const { data: existing, error: fetchError } = await window.walletWarsAPI.supabase
                 .from('tournament_templates')
                 .select('*')
                 .eq('name', variant.name)
-                .single();
+                .maybeSingle(); // Use maybeSingle instead of single to avoid error if not found
+            
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('❌ Error fetching template:', fetchError);
+                return null;
+            }
             
             if (existing) {
+                console.log(`✅ Found existing template: ${variant.name}`);
                 return existing;
             }
             
             // Create new template
+            console.log(`📝 Creating new template: ${variant.name}`);
+            
             const templateData = {
-                name: variant.name,
+                name: variant.name.substring(0, 50), // Ensure name isn't too long
                 tournament_type: 'weekly',
-                trading_style: variant.tradingStyle,
+                trading_style: variant.tradingStyle || 'pure_wallet',
                 start_day: 'variable',
                 entry_fee: variant.entryFee,
                 max_participants: variant.maxParticipants,
                 min_participants: variant.minParticipants || 10,
-                prize_pool_percentage: variant.prizePoolPercentage,
-                is_active: true
+                prize_pool_percentage: variant.prizePoolPercentage || 85,
+                is_active: true,
+                created_at: new Date().toISOString()
             };
             
             const { data, error } = await window.walletWarsAPI.supabase
@@ -400,10 +415,11 @@ class EnhancedTournamentDeploymentManager {
             
             if (error) {
                 console.error('❌ Failed to create template:', error);
+                console.error('Template data:', templateData);
                 return null;
             }
             
-            console.log(`✅ Created new template: ${variant.name}`);
+            console.log(`✅ Created new template: ${variant.name}`, data);
             return data;
             
         } catch (error) {
