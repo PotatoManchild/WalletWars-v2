@@ -144,24 +144,37 @@ class EnhancedTournamentDeploymentManager {
             }
             
             // Step 3: Create tournament instance in database
+            // Match the field names that work in deployTournamentsDatabaseOnly
             const dbTournament = {
-                template_id: template.id,
                 tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
-                status: 'scheduled',
-                start_time: startDate.toISOString(),
-                end_time: endTime.toISOString(),
-                registration_opens: registrationOpens.toISOString(),
-                registration_closes: registrationCloses.toISOString(),
-                participant_count: 0,
-                total_prize_pool: 0,
-                min_participants: variant.minParticipants || 10,
-                registration_opens_at: registrationOpens.toISOString(),
-                registration_closes_at: registrationCloses.toISOString(),
+                entry_fee: variant.entryFee,
+                max_participants: variant.maxParticipants,
+                registration_start: registrationOpens.toISOString(),
+                registration_end: registrationCloses.toISOString(),
+                tournament_start: startDate.toISOString(),
+                tournament_end: endTime.toISOString(),
+                trading_style: variant.tradingStyle || 'pure_wallet',
+                prize_pool_percentage: variant.prizePoolPercentage || 85,
+                platform_fee_percentage: 10,
+                status: 'upcoming',
+                deployed_at: new Date().toISOString(),
+                deployed_by: 'automation',
+                // Store all the extra on-chain data in deployment_metadata
                 deployment_metadata: {
                     deployedAt: new Date().toISOString(),
                     variant: variant.name,
                     tier: tier,
                     baseVariantName: variant.name,
+                    
+                    // Template info
+                    templateId: template.id,
+                    templateName: variant.name,
+                    templateWasFallback: template.id && template.id.startsWith('temp_'),
+                    
+                    // Registration times (for reference)
+                    registrationOpens: registrationOpens.toISOString(),
+                    registrationCloses: registrationCloses.toISOString(),
+                    minParticipants: variant.minParticipants || 10,
                     
                     // Escrow/blockchain data
                     tournamentId: tournamentId,
