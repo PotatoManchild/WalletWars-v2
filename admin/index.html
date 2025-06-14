@@ -8,82 +8,212 @@
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
-    <!-- CRITICAL: Buffer polyfill with proper global setup -->
+    <!-- CRITICAL: Buffer polyfill MUST be set up before any other scripts -->
     <script>
-        // Setup global for Buffer polyfill
+        // Global setup for polyfills
         if (typeof window !== 'undefined') {
             window.global = window;
-            window.process = { env: {} }; // Some polyfills need this
+            window.process = { env: {}, browser: true };
         }
     </script>
     
-    <!-- Load buffer polyfill from UNPKG which properly exports Buffer -->
-    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <!-- Use the buffer polyfill from jsDelivr which is more reliable -->
+    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
     <script>
-        // The UNPKG version creates a 'buffer' module, we need to extract Buffer from it
-        if (typeof window !== 'undefined' && typeof require !== 'undefined') {
-            try {
-                // For browserify-style builds
-                window.Buffer = require('buffer').Buffer;
-            } catch (e) {
-                console.log('Trying alternative Buffer setup...');
-            }
+        // Ensure Buffer is properly exposed to the global scope
+        if (typeof buffer !== 'undefined' && buffer.Buffer) {
+            window.Buffer = buffer.Buffer;
+            console.log('✅ Buffer loaded from buffer module');
         }
         
-        // Alternative: If the above doesn't work, try accessing it directly
-        if (typeof Buffer === 'undefined' && window.buffer && window.buffer.Buffer) {
-            window.Buffer = window.buffer.Buffer;
-        }
-        
-        // Verify Buffer is available
-        if (typeof Buffer !== 'undefined' && typeof Buffer.from === 'function') {
-            console.log('✅ Buffer polyfill loaded successfully');
-            console.log('✅ Buffer.from test:', Buffer.from('test', 'utf8').toString());
+        // Create a complete Buffer polyfill that mimics Node.js Buffer
+        if (!window.Buffer || typeof window.Buffer.from !== 'function') {
+            console.log('⚠️ Creating comprehensive Buffer polyfill...');
             
-            // Test Buffer functionality
-            const testBuffer = Buffer.from('hello world', 'utf8');
-            console.log('✅ Buffer test passed:', testBuffer.length, 'bytes');
-        } else {
-            console.error('❌ Failed to load Buffer polyfill');
-            
-            // Last resort: Create a minimal Buffer shim for Solana Web3.js
-            console.log('⚠️ Creating minimal Buffer shim...');
-            window.Buffer = {
-                from: (data, encoding) => {
-                    if (typeof data === 'string') {
+            class BufferPolyfill extends Uint8Array {
+                static from(value, encodingOrOffset, length) {
+                    if (typeof value === 'string') {
                         const encoder = new TextEncoder();
-                        return encoder.encode(data);
+                        return new BufferPolyfill(encoder.encode(value));
+                    } else if (value instanceof ArrayBuffer) {
+                        return new BufferPolyfill(value, encodingOrOffset, length);
+                    } else if (value instanceof Uint8Array) {
+                        return new BufferPolyfill(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
+                    } else if (Array.isArray(value)) {
+                        return new BufferPolyfill(value);
+                    } else if (value && typeof value.length === 'number') {
+                        // Handle array-like objects
+                        const arr = new Uint8Array(value.length);
+                        for (let i = 0; i < value.length; i++) {
+                            arr[i] = value[i];
+                        }
+                        return new BufferPolyfill(arr.buffer);
                     }
-                    return new Uint8Array(data);
-                },
-                isBuffer: (obj) => obj instanceof Uint8Array,
-                concat: (arrays) => {
-                    const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-                    const result = new Uint8Array(totalLength);
+                    throw new TypeError('First argument must be a string, Buffer, ArrayBuffer, Array, or array-like object.');
+                }
+                
+                static alloc(size, fill, encoding) {
+                    const buf = new BufferPolyfill(size);
+                    if (fill !== undefined) {
+                        buf.fill(fill);
+                    }
+                    return buf;
+                }
+                
+                static allocUnsafe(size) {
+                    return new BufferPolyfill(size);
+                }
+                
+                static isBuffer(obj) {
+                    return obj instanceof BufferPolyfill || obj instanceof Uint8Array;
+                }
+                
+                static concat(list, totalLength) {
+                    if (!Array.isArray(list)) {
+                        throw new TypeError('Usage: Buffer.concat(list, [totalLength])');
+                    }
+                    
+                    if (list.length === 0) {
+                        return new BufferPolyfill(0);
+                    }
+                    
+                    let length = totalLength;
+                    if (length === undefined) {
+                        length = 0;
+                        for (const buf of list) {
+                            length += buf.length;
+                        }
+                    }
+                    
+                    const result = new BufferPolyfill(length);
                     let offset = 0;
-                    arrays.forEach(arr => {
-                        result.set(arr, offset);
-                        offset += arr.length;
-                    });
+                    for (const buf of list) {
+                        result.set(buf, offset);
+                        offset += buf.length;
+                        if (offset >= length) break;
+                    }
+                    
                     return result;
                 }
-            };
-        }
-    </script>
-    
-    <!-- Alternative approach: Use browserify-buffer standalone build -->
-    <script>
-        // If Buffer still isn't available, try the browserify standalone build
-        if (typeof Buffer === 'undefined') {
-            const script = document.createElement('script');
-            script.src = 'https://bundle.run/buffer@6.0.3';
-            script.onload = function() {
-                if (typeof buffer !== 'undefined' && buffer.Buffer) {
-                    window.Buffer = buffer.Buffer;
-                    console.log('✅ Buffer loaded via bundle.run');
+                
+                static byteLength(string, encoding = 'utf8') {
+                    if (typeof string !== 'string') {
+                        throw new TypeError('The "string" argument must be of type string.');
+                    }
+                    return new TextEncoder().encode(string).length;
                 }
-            };
-            document.head.appendChild(script);
+                
+                toString(encoding = 'utf8', start = 0, end = this.length) {
+                    if (encoding === 'hex') {
+                        let result = '';
+                        for (let i = start; i < end; i++) {
+                            result += this[i].toString(16).padStart(2, '0');
+                        }
+                        return result;
+                    } else if (encoding === 'base64') {
+                        // Simple base64 encoding
+                        const bytes = this.slice(start, end);
+                        let binary = '';
+                        bytes.forEach(byte => {
+                            binary += String.fromCharCode(byte);
+                        });
+                        return btoa(binary);
+                    } else {
+                        // Default to UTF-8
+                        const decoder = new TextDecoder(encoding);
+                        return decoder.decode(this.slice(start, end));
+                    }
+                }
+                
+                slice(start, end) {
+                    return new BufferPolyfill(super.slice(start, end));
+                }
+                
+                toJSON() {
+                    return {
+                        type: 'Buffer',
+                        data: Array.from(this)
+                    };
+                }
+                
+                equals(otherBuffer) {
+                    if (!BufferPolyfill.isBuffer(otherBuffer)) {
+                        throw new TypeError('Argument must be a Buffer');
+                    }
+                    if (this.length !== otherBuffer.length) {
+                        return false;
+                    }
+                    for (let i = 0; i < this.length; i++) {
+                        if (this[i] !== otherBuffer[i]) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                
+                compare(target, targetStart = 0, targetEnd = target.length, sourceStart = 0, sourceEnd = this.length) {
+                    if (!BufferPolyfill.isBuffer(target)) {
+                        throw new TypeError('Argument must be a Buffer');
+                    }
+                    
+                    const sourceLen = sourceEnd - sourceStart;
+                    const targetLen = targetEnd - targetStart;
+                    const len = Math.min(sourceLen, targetLen);
+                    
+                    for (let i = 0; i < len; i++) {
+                        const a = this[sourceStart + i];
+                        const b = target[targetStart + i];
+                        if (a < b) return -1;
+                        if (a > b) return 1;
+                    }
+                    
+                    if (sourceLen < targetLen) return -1;
+                    if (sourceLen > targetLen) return 1;
+                    return 0;
+                }
+                
+                copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.length) {
+                    if (!BufferPolyfill.isBuffer(target)) {
+                        throw new TypeError('Argument must be a Buffer');
+                    }
+                    
+                    const len = Math.min(sourceEnd - sourceStart, target.length - targetStart);
+                    
+                    for (let i = 0; i < len; i++) {
+                        target[targetStart + i] = this[sourceStart + i];
+                    }
+                    
+                    return len;
+                }
+                
+                // Make it behave like a Buffer
+                get [Symbol.toStringTag]() {
+                    return 'Buffer';
+                }
+            }
+            
+            // Expose the polyfill globally
+            window.Buffer = BufferPolyfill;
+            
+            // Also add some constants that might be expected
+            window.Buffer.INSPECT_MAX_BYTES = 50;
+            window.Buffer.kMaxLength = 0x7fffffff;
+            
+            console.log('✅ Comprehensive Buffer polyfill created');
+        }
+        
+        // Final verification
+        if (window.Buffer && typeof window.Buffer.from === 'function') {
+            console.log('✅ Buffer is ready!');
+            // Test it
+            try {
+                const test = window.Buffer.from('hello');
+                console.log('✅ Buffer test successful:', test);
+            } catch (e) {
+                console.error('❌ Buffer test failed:', e);
+            }
+        } else {
+            console.error('❌ Failed to set up Buffer!');
         }
     </script>
     
