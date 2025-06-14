@@ -368,6 +368,8 @@ class WalletWarsEscrowIntegration {
     async testConnection() {
         try {
             console.log('🔍 Testing escrow connection...');
+            console.log('📋 Wallet provided:', !!this.wallet);
+            console.log('📋 Wallet public key:', this.wallet?.publicKey?.toString());
             
             // Test 1: Connection
             const version = await this.connection.getVersion();
@@ -406,6 +408,7 @@ class WalletWarsEscrowIntegration {
             if (this.program) {
                 console.log('✅ Anchor program is initialized');
                 console.log('   Program ID:', this.program.programId.toString());
+                console.log('   Wallet connected to provider:', !!this.provider.wallet);
             } else {
                 console.log('⚠️ Anchor not available (optional)');
             }
@@ -414,6 +417,7 @@ class WalletWarsEscrowIntegration {
                 success: true, 
                 message: 'All tests passed!',
                 details: {
+                    walletConnected: !!this.wallet,
                     solanaConnected: true,
                     programFound: !!programInfo,
                     bufferWorking: true,

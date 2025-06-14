@@ -156,6 +156,7 @@ async function initializeEscrow() {
             return false;
         }
 
+        console.log('🔐 Initializing escrow with wallet:', adminWallet.publicKey?.toString());
         escrowIntegration = new window.WalletWarsEscrowIntegration(adminWallet);
         
         // Test connection
@@ -285,6 +286,13 @@ async function deployTournamentsOnChain() {
     showAlert('Initializing on-chain deployment...', 'info');
     
     try {
+        // Check wallet connection first
+        if (!adminWallet || !window.phantom?.solana?.isConnected) {
+            showAlert('Please connect your wallet first!', 'error');
+            await checkConnections();
+            return;
+        }
+        
         // Initialize deployment manager if needed
         if (!deploymentManager) {
             if (!window.EnhancedTournamentDeploymentManager) {
@@ -296,9 +304,12 @@ async function deployTournamentsOnChain() {
         
         // Initialize escrow if needed
         if (!deploymentManager.escrowIntegration) {
+            console.log('🔐 Initializing escrow for deployment manager...');
             const initialized = await deploymentManager.initializeEscrow(adminWallet);
             if (!initialized) {
-                showAlert('Failed to initialize escrow integration', 'error');
+                showAlert('Failed to initialize escrow integration. Make sure your wallet is connected.', 'error');
+                // Try to reconnect
+                await checkConnections();
                 return;
             }
         }
@@ -531,13 +542,14 @@ async function checkConnections() {
     updateStatus('walletStatus', walletConnected);
     document.getElementById('walletText').textContent = walletConnected ? 'Connected' : 'Not Connected';
     
-    // Store admin wallet if connected
-    if (walletConnected) {
-        adminWallet = {
-            publicKey: window.phantom.solana.publicKey,
-            signTransaction: window.phantom.solana.signTransaction.bind(window.phantom.solana),
-            signAllTransactions: window.phantom.solana.signAllTransactions.bind(window.phantom.solana)
-        };
+    // Store admin wallet if connected - use the full phantom.solana object
+    if (walletConnected && window.phantom?.solana) {
+        // The escrow integration expects the full wallet adapter object
+        adminWallet = window.phantom.solana;
+        console.log('✅ Admin wallet stored:', adminWallet.publicKey?.toString());
+    } else {
+        adminWallet = null;
+        console.log('❌ No wallet connected');
     }
     
     // Check database
@@ -1361,7 +1373,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     // Check connections
-    checkConnections();
+    await checkConnections();
+    
+    // Set up wallet connection listener
+    if (window.phantom?.solana) {
+        window.phantom.solana.on('connect', async () => {
+            console.log('👛 Wallet connected!');
+            await checkConnections();
+        });
+        
+        window.phantom.solana.on('disconnect', () => {
+            console.log('👛 Wallet disconnected!');
+            adminWallet = null;
+            escrowIntegration = null;
+            updateStatus('walletStatus', false);
+            updateStatus('escrowStatus', false);
+            document.getElementById('walletText').textContent = 'Not Connected';
+        });
+    }
+    
+    // Also check if wallet is already connected but not picked up
+    setTimeout(async () => {
+        if (window.phantom?.solana?.isConnected && !adminWallet) {
+            console.log('👛 Found connected wallet, re-initializing...');
+            await checkConnections();
+        }
+    }, 1000);
     
     // Load initial data
     loadVariants();
