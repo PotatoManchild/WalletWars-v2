@@ -275,20 +275,43 @@
         
         // Method 1: Try loading from CDN with older stable version
         function loadAnchorFromCDN() {
-            console.log('📡 Attempting to load Anchor from CDN...');
-            const script = document.createElement('script');
-            script.src = 'https://unpkg.com/@project-serum/anchor@0.20.1/dist/anchor.min.js';
-            script.onload = function() {
-                console.log('✅ Anchor loaded from CDN successfully');
-                initializeAdminPanel();
-            };
-            script.onerror = function() {
-                console.warn('❌ CDN loading failed (possibly blocked by VPN/security)');
-                console.log('📁 Attempting to load local anchor-browser.js...');
-                loadAnchorLocal();
-            };
-            document.head.appendChild(script);
+    console.log('📡 Attempting to load Anchor from CDN...');
+    const script = document.createElement('script');
+    
+    // Try multiple URLs in sequence
+    const cdnUrls = [
+        'https://unpkg.com/@project-serum/anchor@0.11.1/dist/anchor.min.js',
+        'https://unpkg.com/@coral-xyz/anchor@0.29.0/dist/cjs/index.js',
+        'https://unpkg.com/@project-serum/anchor@0.24.2/dist/cjs/index.js'
+    ];
+    
+    let currentIndex = 0;
+    
+    function tryNextUrl() {
+        if (currentIndex >= cdnUrls.length) {
+            console.warn('❌ All CDN URLs failed, loading local file...');
+            loadAnchorLocal();
+            return;
         }
+        
+        script.src = cdnUrls[currentIndex];
+        console.log(`Trying: ${cdnUrls[currentIndex]}`);
+        currentIndex++;
+    }
+    
+    script.onload = function() {
+        console.log('✅ Anchor loaded from CDN successfully');
+        initializeAdminPanel();
+    };
+    
+    script.onerror = function() {
+        console.warn(`❌ Failed to load: ${script.src}`);
+        tryNextUrl();
+    };
+    
+    tryNextUrl();
+    document.head.appendChild(script);
+}
         
         // Method 2: Load local browser-ready build
         function loadAnchorLocal() {
