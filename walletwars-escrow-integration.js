@@ -243,7 +243,27 @@ class WalletWarsEscrowIntegration {
             });
 
             // If Anchor is available, use it
-            if (this.program && this.BN) {
+if (this.program && this.BN) {
+    // ADD THIS DEBUG CODE HERE (before const tx)
+    // Debug what values we're passing
+    console.log('Debug - Values being passed to Anchor:', {
+        tournamentId,
+        entryFee: entryFee * this.LAMPORTS_PER_SOL,
+        maxPlayers,
+        platformFeePercentage,
+        startTime,
+        endTime
+    });
+
+    // Test BN creation
+    const testEntryFee = new this.BN(entryFee * this.LAMPORTS_PER_SOL);
+    const testStartTime = new this.BN(startTime);
+    const testEndTime = new this.BN(endTime);
+    console.log('Debug - BNs created:', {
+        entryFee: testEntryFee.toString(),
+        startTime: testStartTime.toString(),
+        endTime: testEndTime.toString()
+    });
                 const tx = await this.program.methods
                     .initializeTournament(
                         tournamentId,
