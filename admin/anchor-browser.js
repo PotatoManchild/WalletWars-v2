@@ -259,15 +259,15 @@
             
             // Pre-calculated discriminators for walletwars_escrow
             // These are the first 8 bytes of SHA256("global:snake_case_name")
-            // Updated based on standard Anchor calculation
+            // Values directly from the discriminator calculator
             this.discriminators = {
-                'initializeTournament': [175, 175, 109, 127, 69, 165, 88, 67],
-                'registerPlayer': [248, 72, 226, 28, 151, 239, 11, 227],
-                'finalizeTournament': [168, 246, 161, 100, 168, 203, 36, 178],
-                'distributePrize': [97, 95, 196, 160, 129, 41, 139, 229],
-                'collectPlatformFees': [235, 177, 209, 73, 42, 138, 230, 95],
-                'cancelTournament': [206, 250, 116, 57, 8, 163, 255, 27],
-                'refundPlayer': [47, 99, 202, 211, 198, 215, 134, 124]
+                'initializeTournament': [175, 218, 86, 80, 49, 127, 155, 186],
+                'registerPlayer': [242, 146, 194, 234, 145, 228, 42, 196],
+                'finalizeTournament': [205, 30, 149, 11, 108, 122, 120, 11],
+                'distributePrize': [153, 175, 67, 111, 205, 207, 106, 15],
+                'collectPlatformFees': [27, 90, 208, 75, 242, 151, 92, 151],
+                'cancelTournament': [218, 174, 9, 101, 182, 38, 19, 102],
+                'refundPlayer': [22, 81, 70, 244, 162, 94, 136, 82]
             };
         }
         
