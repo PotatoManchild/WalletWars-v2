@@ -16,15 +16,23 @@ class WalletWarsEscrowIntegration {
         // Enhanced Buffer detection and fallback
         this.Buffer = this.setupBuffer();
         
-        // Anchor globals (if available)
-        if (typeof anchor !== 'undefined') {
-            this.AnchorProvider = anchor.AnchorProvider;
-            this.Program = anchor.Program;
-            this.BN = anchor.BN;
-            console.log('✅ Escrow: Anchor is available');
-        } else {
-            console.log('⚠️ Escrow: Anchor not available, will use direct transactions');
-        }
+        // Anchor globals (if available) - try multiple ways
+if (typeof anchor !== 'undefined') {
+    this.AnchorProvider = anchor.AnchorProvider || anchor.Provider;
+    this.Program = anchor.Program;
+    this.BN = anchor.BN;
+    this.anchor = anchor;
+    console.log('✅ Escrow: Anchor is available');
+} else if (typeof window !== 'undefined' && window.anchor) {
+    this.AnchorProvider = window.anchor.AnchorProvider || window.anchor.Provider;
+    this.Program = window.anchor.Program;
+    this.BN = window.anchor.BN;
+    this.anchor = window.anchor;
+    console.log('✅ Escrow: Anchor is available from window');
+} else {
+    console.log('⚠️ Escrow: Anchor not available, will use direct transactions');
+    this.anchor = null;
+}
         
         // Store wallet
         this.wallet = wallet;
