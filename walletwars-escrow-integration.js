@@ -232,20 +232,49 @@ class WalletWarsEscrowIntegration {
             console.log(`🎮 Initializing tournament ${tournamentId} on-chain...`);
 
             // Generate PDAs
-            const [tournamentPDA] = await this.PublicKey.findProgramAddress(
+            const [tournamentPDA, tournamentBump] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
             );
 
-            const [escrowPDA] = await this.PublicKey.findProgramAddress(
+            const [escrowPDA, escrowBump] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('escrow'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
             );
 
             console.log('📍 PDAs generated:', {
                 tournament: tournamentPDA.toString(),
-                escrow: escrowPDA.toString()
+                tournamentBump,
+                escrow: escrowPDA.toString(),
+                escrowBump
             });
+            
+            // Check if ANY of these accounts already exist
+            console.log('🔍 Checking account states before initialization...');
+            
+            const tournamentAccount = await this.connection.getAccountInfo(tournamentPDA);
+            const escrowAccount = await this.connection.getAccountInfo(escrowPDA);
+            
+            console.log('Tournament account exists:', !!tournamentAccount);
+            if (tournamentAccount) {
+                console.log('  Owner:', tournamentAccount.owner.toString());
+                console.log('  Lamports:', tournamentAccount.lamports);
+                console.log('  Data length:', tournamentAccount.data.length);
+                console.log('  ⚠️ Tournament account already exists! This will likely fail.');
+            }
+            
+            console.log('Escrow account exists:', !!escrowAccount);
+            if (escrowAccount) {
+                console.log('  Owner:', escrowAccount.owner.toString());
+                console.log('  Lamports:', escrowAccount.lamports);
+                console.log('  Data length:', escrowAccount.data.length);
+            } else {
+                console.log('  ℹ️ Escrow account does not exist - this is expected for initialization');
+            }
+            
+            // Also log the authority (wallet) being used
+            console.log('Authority (wallet):', this.wallet.publicKey.toString());
+            console.log('System Program:', this.SystemProgram.programId.toString());
 
             // If Anchor is available, use it
             if (this.program && this.BN) {
@@ -299,6 +328,12 @@ class WalletWarsEscrowIntegration {
                     };
                 } catch (anchorError) {
                     console.error('❌ Anchor transaction failed:', anchorError);
+                    
+                    // Try to parse the error logs
+                    if (anchorError.logs) {
+                        console.error('Transaction logs:');
+                        anchorError.logs.forEach(log => console.error('  ', log));
+                    }
                     
                     // If it's a serialization error, provide more context
                     if (anchorError.message && anchorError.message.includes('serialize')) {
@@ -441,7 +476,7 @@ class WalletWarsEscrowIntegration {
         
         // 1. Add instruction discriminator (8 bytes)
         // Using the correct discriminator for initializeTournament
-        const discriminator = new Uint8Array([175, 175, 109, 127, 69, 165, 88, 67]);
+        const discriminator = new Uint8Array([175, 218, 86, 80, 49, 127, 155, 186]);
         buffers.push(discriminator);
         
         // 2. Encode string (tournament ID) - length prefix + data
