@@ -120,6 +120,14 @@ class EnhancedTournamentDeploymentManager {
                     throw new Error('Escrow integration not initialized');
                 }
                 
+                // Check if tournament already exists on-chain
+                const existsOnChain = await this.checkTournamentExistsOnChain(tournamentId);
+                if (existsOnChain) {
+                    console.log(`🔄 Tournament ${tournamentId} already exists on-chain, generating new ID...`);
+                    // Generate a new tournament ID and try again
+                    return this.createTournamentWithEscrow(startDate, variant);
+                }
+                
                 console.log('🔴 Creating REAL on-chain tournament...');
                 escrowResult = await this.escrowIntegration.initializeTournament({
                     tournamentId,
@@ -223,7 +231,7 @@ class EnhancedTournamentDeploymentManager {
     }
     
     /**
-     * Generate unique tournament ID
+     * Generate unique tournament ID with timestamp to ensure uniqueness
      */
     generateTournamentId(startDate, variant) {
         const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
@@ -231,8 +239,41 @@ class EnhancedTournamentDeploymentManager {
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '')
             .substring(0, 10);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `${variantStr}_${dateStr.substring(2)}_${random}`;
+        
+        // Use timestamp for true uniqueness instead of just random
+        const timestamp = Date.now();
+        const timestampStr = timestamp.toString().slice(-6); // Last 6 digits of timestamp
+        
+        return `${variantStr}_${dateStr.substring(2)}_${timestampStr}`;
+    }
+    
+    /**
+     * Check if tournament exists on-chain before creating
+     */
+    async checkTournamentExistsOnChain(tournamentId) {
+        if (!this.escrowIntegration) {
+            return false;
+        }
+        
+        try {
+            const [tournamentPDA] = await this.escrowIntegration.PublicKey.findProgramAddress(
+                [this.escrowIntegration.Buffer.from('tournament'), this.escrowIntegration.Buffer.from(tournamentId)],
+                this.escrowIntegration.PROGRAM_ID
+            );
+            
+            const accountInfo = await this.escrowIntegration.connection.getAccountInfo(tournamentPDA);
+            
+            if (accountInfo) {
+                console.log(`⚠️ Tournament already exists on-chain: ${tournamentId}`);
+                console.log(`   PDA: ${tournamentPDA.toString()}`);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking on-chain tournament:', error);
+            return false;
+        }
     }
     
     /**
