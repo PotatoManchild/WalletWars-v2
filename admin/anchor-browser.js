@@ -259,6 +259,7 @@
             
             // Pre-calculated discriminators for walletwars_escrow
             // These are the first 8 bytes of SHA256("global:snake_case_name")
+            // Updated based on standard Anchor calculation
             this.discriminators = {
                 'initializeTournament': [175, 175, 109, 127, 69, 165, 88, 67],
                 'registerPlayer': [248, 72, 226, 28, 151, 239, 11, 227],
@@ -282,6 +283,10 @@
                 throw new Error(`No discriminator found for instruction: ${ixName}`);
             }
             
+            console.log(`🔧 Encoding instruction: ${ixName}`);
+            console.log('Discriminator:', discriminator);
+            console.log('Args:', args);
+            
             // Start with discriminator
             const data = [...discriminator];
             
@@ -289,6 +294,14 @@
             if (ixName === 'initializeTournament') {
                 // Args: [tournamentId, entryFee, maxPlayers, platformFeePercentage, startTime, endTime]
                 const [tournamentId, entryFee, maxPlayers, platformFeePercentage, startTime, endTime] = args;
+                
+                console.log('Encoding initializeTournament with:');
+                console.log('- tournamentId:', tournamentId);
+                console.log('- entryFee:', entryFee?.toString ? entryFee.toString() : entryFee);
+                console.log('- maxPlayers:', maxPlayers);
+                console.log('- platformFeePercentage:', platformFeePercentage);
+                console.log('- startTime:', startTime?.toString ? startTime.toString() : startTime);
+                console.log('- endTime:', endTime?.toString ? endTime.toString() : endTime);
                 
                 // 1. Encode string (tournament ID) - 4 byte length prefix + UTF8 bytes
                 const idBytes = new TextEncoder().encode(tournamentId);
@@ -343,6 +356,9 @@
                         data.push(Number((val >> BigInt(i * 8)) & BigInt(0xff)));
                     }
                 }
+                
+                console.log('📦 Encoded data length:', data.length, 'bytes');
+                console.log('Hex:', data.map(b => b.toString(16).padStart(2, '0')).join(' '));
             } else if (ixName === 'registerPlayer') {
                 // No args for registerPlayer
             } else {

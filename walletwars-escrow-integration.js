@@ -358,60 +358,140 @@ class WalletWarsEscrowIntegration {
     }
     
     /**
- * Encode instruction data for initialize tournament
- * Using proper Borsh-like encoding for Solana
- */
-encodeInitializeTournamentData(params) {
-    // Create a buffer to hold all the data
-    const buffers = [];
-    
-    // 1. Add instruction discriminator (8 bytes)
-    // This is a placeholder - the real discriminator should come from your program
-    const discriminator = new Uint8Array([175, 175, 125, 127, 69, 165, 88, 67]);
-    buffers.push(discriminator);
-    
-    // 2. Encode string (tournament ID) - length prefix + data
-    const tournamentIdBytes = this.Buffer.from(params.tournamentId, 'utf8');
-    const idLengthBytes = new Uint8Array(4);
-    new DataView(idLengthBytes.buffer).setUint32(0, tournamentIdBytes.length, true);
-    buffers.push(idLengthBytes);
-    buffers.push(tournamentIdBytes);
-    
-    // 3. Encode u64 (entry fee) - 8 bytes little endian
-    const entryFeeBytes = new Uint8Array(8);
-    const entryFeeBN = BigInt(params.entryFee);
-    for (let i = 0; i < 8; i++) {
-        entryFeeBytes[i] = Number((entryFeeBN >> BigInt(i * 8)) & BigInt(0xFF));
+     * Debug instruction data
+     * Helps identify encoding issues
+     */
+    debugInstructionData(instructionData) {
+        console.log('📊 Instruction Data Debug:');
+        console.log('Total length:', instructionData.length, 'bytes');
+        
+        // Show discriminator
+        const discriminator = Array.from(instructionData.slice(0, 8));
+        console.log('Discriminator:', discriminator.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+        
+        // Show hex dump
+        const hex = Array.from(instructionData).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        console.log('Hex dump:', hex);
+        
+        // Try to parse the data
+        let offset = 8; // Skip discriminator
+        
+        // String length (4 bytes)
+        if (offset + 4 <= instructionData.length) {
+            const strLen = instructionData[offset] | 
+                          (instructionData[offset + 1] << 8) | 
+                          (instructionData[offset + 2] << 16) | 
+                          (instructionData[offset + 3] << 24);
+            console.log('String length:', strLen);
+            offset += 4;
+            
+            // String data
+            if (offset + strLen <= instructionData.length) {
+                const strData = instructionData.slice(offset, offset + strLen);
+                const str = new TextDecoder().decode(strData);
+                console.log('Tournament ID:', str);
+                offset += strLen;
+            }
+        }
+        
+        // Entry fee (8 bytes)
+        if (offset + 8 <= instructionData.length) {
+            const entryFee = instructionData.slice(offset, offset + 8);
+            console.log('Entry fee bytes:', Array.from(entryFee).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            offset += 8;
+        }
+        
+        // Max players (4 bytes)
+        if (offset + 4 <= instructionData.length) {
+            const maxPlayers = instructionData[offset] | 
+                              (instructionData[offset + 1] << 8) | 
+                              (instructionData[offset + 2] << 16) | 
+                              (instructionData[offset + 3] << 24);
+            console.log('Max players:', maxPlayers);
+            offset += 4;
+        }
+        
+        // Platform fee (1 byte)
+        if (offset + 1 <= instructionData.length) {
+            console.log('Platform fee percentage:', instructionData[offset]);
+            offset += 1;
+        }
+        
+        // Start time (8 bytes)
+        if (offset + 8 <= instructionData.length) {
+            const startTime = instructionData.slice(offset, offset + 8);
+            console.log('Start time bytes:', Array.from(startTime).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            offset += 8;
+        }
+        
+        // End time (8 bytes)
+        if (offset + 8 <= instructionData.length) {
+            const endTime = instructionData.slice(offset, offset + 8);
+            console.log('End time bytes:', Array.from(endTime).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+        }
     }
-    buffers.push(entryFeeBytes);
-    
-    // 4. Encode u32 (max players) - 4 bytes little endian
-    const maxPlayersBytes = new Uint8Array(4);
-    new DataView(maxPlayersBytes.buffer).setUint32(0, params.maxPlayers, true);
-    buffers.push(maxPlayersBytes);
-    
-    // 5. Encode u8 (platform fee percentage) - 1 byte
-    buffers.push(new Uint8Array([params.platformFeePercentage]));
-    
-    // 6. Encode i64 (start time) - 8 bytes little endian
-    const startTimeBytes = new Uint8Array(8);
-    const startTimeBN = BigInt(params.startTime);
-    for (let i = 0; i < 8; i++) {
-        startTimeBytes[i] = Number((startTimeBN >> BigInt(i * 8)) & BigInt(0xFF));
+
+    /**
+     * Encode instruction data for initialize tournament
+     * Using proper Borsh-like encoding for Solana
+     */
+    encodeInitializeTournamentData(params) {
+        // Create a buffer to hold all the data
+        const buffers = [];
+        
+        // 1. Add instruction discriminator (8 bytes)
+        // Using the correct discriminator for initializeTournament
+        const discriminator = new Uint8Array([175, 175, 109, 127, 69, 165, 88, 67]);
+        buffers.push(discriminator);
+        
+        // 2. Encode string (tournament ID) - length prefix + data
+        const tournamentIdBytes = this.Buffer.from(params.tournamentId, 'utf8');
+        const idLengthBytes = new Uint8Array(4);
+        new DataView(idLengthBytes.buffer).setUint32(0, tournamentIdBytes.length, true);
+        buffers.push(idLengthBytes);
+        buffers.push(tournamentIdBytes);
+        
+        // 3. Encode u64 (entry fee) - 8 bytes little endian
+        const entryFeeBytes = new Uint8Array(8);
+        const entryFeeBN = BigInt(params.entryFee);
+        for (let i = 0; i < 8; i++) {
+            entryFeeBytes[i] = Number((entryFeeBN >> BigInt(i * 8)) & BigInt(0xFF));
+        }
+        buffers.push(entryFeeBytes);
+        
+        // 4. Encode u32 (max players) - 4 bytes little endian
+        const maxPlayersBytes = new Uint8Array(4);
+        new DataView(maxPlayersBytes.buffer).setUint32(0, params.maxPlayers, true);
+        buffers.push(maxPlayersBytes);
+        
+        // 5. Encode u8 (platform fee percentage) - 1 byte
+        buffers.push(new Uint8Array([params.platformFeePercentage]));
+        
+        // 6. Encode i64 (start time) - 8 bytes little endian
+        const startTimeBytes = new Uint8Array(8);
+        const startTimeBN = BigInt(params.startTime);
+        for (let i = 0; i < 8; i++) {
+            startTimeBytes[i] = Number((startTimeBN >> BigInt(i * 8)) & BigInt(0xFF));
+        }
+        buffers.push(startTimeBytes);
+        
+        // 7. Encode i64 (end time) - 8 bytes little endian
+        const endTimeBytes = new Uint8Array(8);
+        const endTimeBN = BigInt(params.endTime);
+        for (let i = 0; i < 8; i++) {
+            endTimeBytes[i] = Number((endTimeBN >> BigInt(i * 8)) & BigInt(0xFF));
+        }
+        buffers.push(endTimeBytes);
+        
+        // Combine all buffers
+        const result = this.Buffer.concat(buffers);
+        
+        // Debug the encoded data
+        console.log('🔍 Manual instruction encoding:');
+        this.debugInstructionData(result);
+        
+        return result;
     }
-    buffers.push(startTimeBytes);
-    
-    // 7. Encode i64 (end time) - 8 bytes little endian
-    const endTimeBytes = new Uint8Array(8);
-    const endTimeBN = BigInt(params.endTime);
-    for (let i = 0; i < 8; i++) {
-        endTimeBytes[i] = Number((endTimeBN >> BigInt(i * 8)) & BigInt(0xFF));
-    }
-    buffers.push(endTimeBytes);
-    
-    // Combine all buffers
-    return this.Buffer.concat(buffers);
-}
 
     /**
      * Register a player for a tournament
