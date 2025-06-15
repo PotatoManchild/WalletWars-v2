@@ -74,15 +74,17 @@ class EnhancedTournamentDeploymentManager {
             // Generate unique tournament ID - SHORTER VERSION
             const tournamentId = this.generateTournamentId(startDate, variant);
             
-            // Calculate times
+            // Calculate times - FIXED
             const registrationOpens = new Date(startDate);
             registrationOpens.setDate(registrationOpens.getDate() - 3);
             
             const registrationCloses = new Date(startDate);
-            registrationCloses.setMinutes(registrationCloses.getMinutes() - this.config.timing.registrationCloseBeforeStart);
+            // Use a safe default if timing config is missing
+            const closeMinutes = this.config.timing?.registrationCloseBeforeStart || 30;
+            registrationCloses.setMinutes(registrationCloses.getMinutes() - closeMinutes);
             
             const endTime = new Date(startDate);
-            endTime.setDate(endTime.getDate() + variant.duration);
+            endTime.setDate(endTime.getDate() + (variant.duration || 7));
             
             // Determine tier from entry fee
             const tier = this.getTierFromEntryFee(variant.entryFee);
@@ -150,9 +152,18 @@ class EnhancedTournamentDeploymentManager {
             const validRegOpens = new Date(registrationOpens);
             const validRegCloses = new Date(registrationCloses);
             
+            // Debug log the dates
+            console.log('📅 Date calculations:', {
+                startDate: validStartDate.toISOString(),
+                endTime: validEndTime.toISOString(),
+                regOpens: validRegOpens.toISOString(),
+                regCloses: validRegCloses.toISOString()
+            });
+            
             // Check for invalid dates
-            if (isNaN(validStartDate.getTime()) || isNaN(validEndTime.getTime())) {
-                throw new Error('Invalid date values provided');
+            if (isNaN(validStartDate.getTime()) || isNaN(validEndTime.getTime()) || 
+                isNaN(validRegOpens.getTime()) || isNaN(validRegCloses.getTime())) {
+                throw new Error('Invalid date values calculated');
             }
             
             const dbTournament = {
@@ -433,6 +444,11 @@ class EnhancedTournamentDeploymentManager {
         
         // Use provided start date or default to tomorrow
         const start = startDate ? new Date(startDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+        
+        // Ensure the start date is valid
+        if (isNaN(start.getTime())) {
+            throw new Error('Invalid start date provided');
+        }
         
         return await this.createTournamentWithEscrow(start, variant);
     }
