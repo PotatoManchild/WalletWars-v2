@@ -144,24 +144,57 @@ class EnhancedTournamentDeploymentManager {
             }
             
             // Step 3: Create tournament instance in database (FIXED SCHEMA)
+            // Ensure all dates are valid
+            const validStartDate = new Date(startDate);
+            const validEndTime = new Date(endTime);
+            const validRegOpens = new Date(registrationOpens);
+            const validRegCloses = new Date(registrationCloses);
+            
+            // Check for invalid dates
+            if (isNaN(validStartDate.getTime()) || isNaN(validEndTime.getTime())) {
+                throw new Error('Invalid date values provided');
+            }
+            
             const dbTournament = {
-                tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
-                entry_fee: variant.entryFee,
-                max_participants: variant.maxParticipants,
+                tournament_name: `${variant.name} - ${validStartDate.toLocaleDateString()}`,
+                entry_fee: parseFloat(variant.entryFee),
+                max_participants: parseInt(variant.maxParticipants),
                 status: 'upcoming',
-                start_time: startDate.toISOString(),
-                end_time: endTime.toISOString(),
-                // REMOVED: deployed_at - this column doesn't exist
-                // REMOVED: deployed_by - this column doesn't exist
-                // Add other fields that DO exist in your schema
-                registration_start: registrationOpens.toISOString(),
-                registration_end: registrationCloses.toISOString(),
+                start_time: validStartDate.toISOString(),
+                end_time: validEndTime.toISOString(),
+                registration_start: validRegOpens.toISOString(),
+                registration_end: validRegCloses.toISOString(),
                 trading_style: variant.tradingStyle || 'pure_wallet',
-                prize_pool_percentage: variant.prizePoolPercentage || 85,
-                platform_fee_percentage: this.config.escrow?.platformFeePercentage || 10
+                prize_pool_percentage: parseFloat(variant.prizePoolPercentage || 85),
+                platform_fee_percentage: parseFloat(this.config.escrow?.platformFeePercentage || 10)
             };
             
             console.log('📝 Attempting tournament insert with fixed schema:', dbTournament);
+            
+            // Try the most minimal possible insert first
+            const ultraMinimal = {
+                tournament_name: `Test ${Date.now()}`,
+                entry_fee: 0.01,
+                max_participants: 100,
+                start_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+                end_time: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString(),
+                status: 'upcoming'
+            };
+            
+            console.log('🧪 Testing ultra-minimal insert first:', ultraMinimal);
+            
+            const { data: testInsert, error: testError } = await window.walletWarsAPI.supabase
+                .from('tournament_instances')
+                .insert(ultraMinimal)
+                .select()
+                .single();
+                
+            if (testError) {
+                console.error('❌ Even ultra-minimal insert failed:', testError);
+                throw new Error(`Ultra-minimal insert failed: ${testError.message}`);
+            }
+            
+            console.log('✅ Ultra-minimal insert worked! Trying full insert...');
             
             const { data: dbInstance, error: dbError } = await window.walletWarsAPI.supabase
                 .from('tournament_instances')
@@ -176,11 +209,11 @@ class EnhancedTournamentDeploymentManager {
                 // Try a minimal insert with only the most basic fields
                 console.log('🔄 Trying minimal insert...');
                 const minimalTournament = {
-                    tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
-                    entry_fee: variant.entryFee,
-                    max_participants: variant.maxParticipants,
-                    start_time: startDate.toISOString(),
-                    end_time: endTime.toISOString(),
+                    tournament_name: `${variant.name} - ${validStartDate.toLocaleDateString()}`,
+                    entry_fee: parseFloat(variant.entryFee),
+                    max_participants: parseInt(variant.maxParticipants),
+                    start_time: validStartDate.toISOString(),
+                    end_time: validEndTime.toISOString(),
                     status: 'upcoming'
                 };
                 
