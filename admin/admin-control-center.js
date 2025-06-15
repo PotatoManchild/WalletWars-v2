@@ -1107,7 +1107,7 @@ async function loadMonitoringData() {
                         const { data: entries, error } = await window.walletWarsAPI.supabase
                             .from('tournament_entries')
                             .select('*')
-                            .eq('tournament_id', tournament.id);
+                            .eq('tournament_instance_id', tournament.id);
                             
                         if (!error && entries) {
                             totalPlayers += entries.length;
