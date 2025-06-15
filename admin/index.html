@@ -192,6 +192,11 @@
                 }
             }
             
+            // Add additional Buffer methods
+            BufferPolyfill.prototype.toBuffer = function() {
+                return this;
+            };
+            
             // Expose the polyfill globally
             window.Buffer = BufferPolyfill;
             
@@ -218,10 +223,155 @@
     </script>
     
     <!-- NOW load Solana Web3.js (AFTER Buffer setup) -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/@solana/web3.js@1.78.0/lib/index.iife.min.js"></script>
     
-    <!-- Anchor (optional) -->
-    <script src="anchor.js"></script>
+    <!-- Anchor Loading with Multiple Fallbacks -->
+    <script>
+        console.log('🚀 Starting Anchor loading process...');
+        
+        // Function to test if Anchor is properly loaded
+        function testAnchorAvailability() {
+            if (window.anchor && window.anchor.Provider && window.anchor.Program && window.anchor.BN) {
+                console.log('✅ Anchor is fully loaded and available!');
+                console.log('Available components:', Object.keys(window.anchor));
+                
+                // Test BN functionality
+                try {
+                    const testBN = new window.anchor.BN(1000);
+                    console.log('✅ BN test successful:', testBN.toString());
+                    return true;
+                } catch (e) {
+                    console.error('❌ BN test failed:', e);
+                    return false;
+                }
+            }
+            return false;
+        }
+        
+        // Initialize admin panel after all scripts are loaded
+        function initializeAdminPanel() {
+            console.log('🎮 Initializing Admin Panel...');
+            
+            // Test final state
+            const anchorAvailable = testAnchorAvailability();
+            
+            if (!anchorAvailable) {
+                console.warn('⚠️ Anchor not fully available, some features may be limited');
+                // Update UI to show warning
+                const escrowStatus = document.getElementById('escrowStatus');
+                if (escrowStatus) {
+                    escrowStatus.classList.remove('active');
+                    escrowStatus.style.background = '#fbbf24'; // Warning color
+                }
+            }
+            
+            // Initialize tournament system if available
+            if (typeof initTournamentSystem === 'function') {
+                initTournamentSystem();
+            } else {
+                console.warn('⚠️ Tournament system initialization function not found');
+            }
+        }
+        
+        // Method 1: Try loading from CDN with older stable version
+        function loadAnchorFromCDN() {
+            console.log('📡 Attempting to load Anchor from CDN...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@project-serum/anchor@0.20.1/dist/anchor.min.js';
+            script.onload = function() {
+                console.log('✅ Anchor loaded from CDN successfully');
+                initializeAdminPanel();
+            };
+            script.onerror = function() {
+                console.warn('❌ CDN loading failed (possibly blocked by VPN/security)');
+                console.log('📁 Attempting to load local anchor-browser.js...');
+                loadAnchorLocal();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Method 2: Load local browser-ready build
+        function loadAnchorLocal() {
+            const script = document.createElement('script');
+            script.src = './anchor-browser.js';
+            script.onload = function() {
+                console.log('✅ Anchor loaded from local file');
+                initializeAdminPanel();
+            };
+            script.onerror = function() {
+                console.warn('❌ Local anchor-browser.js not found');
+                console.log('📦 Loading fallback anchor-mock.js...');
+                loadAnchorMock();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Method 3: Load mock implementation
+        function loadAnchorMock() {
+            const script = document.createElement('script');
+            script.src = './anchor-mock.js';
+            script.onload = function() {
+                console.log('⚠️ Using Anchor mock - limited functionality');
+                console.log('💡 For full functionality, please add anchor-browser.js to the admin folder');
+                initializeAdminPanel();
+            };
+            script.onerror = function() {
+                console.error('❌ All Anchor loading methods failed!');
+                console.error('Please ensure one of these files exists:');
+                console.error('1. anchor-browser.js (recommended)');
+                console.error('2. anchor-mock.js (fallback)');
+                // Still try to initialize with limited functionality
+                initializeAdminPanel();
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Add a manual test function for debugging
+        window.testAnchorIntegration = function() {
+            console.log('=== Anchor Integration Test ===');
+            console.log('Solana Web3 available:', !!window.solanaWeb3);
+            console.log('Buffer available:', !!window.Buffer);
+            console.log('Anchor available:', !!window.anchor);
+            
+            if (window.anchor) {
+                console.log('Anchor components:', Object.keys(window.anchor));
+                
+                // Test each component
+                const tests = [
+                    { name: 'BN', test: () => new window.anchor.BN(100).toString() === '100' },
+                    { name: 'Provider', test: () => !!window.anchor.Provider },
+                    { name: 'Program', test: () => !!window.anchor.Program },
+                    { name: 'web3', test: () => !!window.anchor.web3 }
+                ];
+                
+                tests.forEach(({ name, test }) => {
+                    try {
+                        if (test()) {
+                            console.log(`✅ ${name} works`);
+                        } else {
+                            console.log(`❌ ${name} failed`);
+                        }
+                    } catch (e) {
+                        console.log(`❌ ${name} error:`, e.message);
+                    }
+                });
+            }
+            
+            // Test escrow integration
+            if (window.WalletWarsEscrowIntegration) {
+                console.log('✅ Escrow integration class available');
+                const escrow = new WalletWarsEscrowIntegration(window.solana);
+                console.log('Escrow dependencies:', escrow.checkDependencies());
+            } else {
+                console.log('❌ Escrow integration not loaded');
+            }
+            
+            console.log('=== Test Complete ===');
+        };
+        
+        // Start the loading process
+        loadAnchorFromCDN();
+    </script>
     
     <!-- Supabase -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -963,6 +1113,27 @@
             color: #9ca3af;
         }
 
+        /* Anchor Test Button */
+        .anchor-test-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.5);
+            color: #8b5cf6;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            z-index: 999;
+        }
+
+        .anchor-test-btn:hover {
+            background: rgba(139, 92, 246, 0.3);
+            transform: translateY(-2px);
+        }
+
         /* Mobile Responsive Styles */
         @media (max-width: 768px) {
             .admin-container {
@@ -1045,6 +1216,13 @@
                 left: 1rem;
                 right: 1rem;
                 max-width: none;
+            }
+
+            .anchor-test-btn {
+                bottom: 1rem;
+                right: 1rem;
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
             }
         }
 
@@ -1379,6 +1557,9 @@
                             <button class="btn btn-secondary" onclick="testEscrowConnection()">
                                 🔗 Test Escrow Connection
                             </button>
+                            <button class="btn btn-secondary" onclick="testAnchorIntegration()">
+                                ⚓ Test Anchor Integration
+                            </button>
                         </div>
                     </div>
 
@@ -1447,6 +1628,11 @@
 
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Anchor Test Button (Debug Helper) -->
+    <button class="anchor-test-btn" onclick="testAnchorIntegration()">
+        ⚓ Test Anchor
+    </button>
 
     <!-- Add Variant Modal -->
     <div id="addVariantModal" class="modal-overlay" style="display: none;">
