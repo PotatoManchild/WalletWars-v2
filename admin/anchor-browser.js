@@ -64,28 +64,31 @@
             // Convert to hex string first
             let hex = this.value.toString(16);
             
+            // Handle negative numbers
+            if (this.value < 0) {
+                // Two's complement for negative numbers
+                const bits = length * 8;
+                const max = BigInt(1) << BigInt(bits);
+                hex = (max + this.value).toString(16);
+            }
+            
             // Pad to even number of characters
             if (hex.length % 2 !== 0) {
                 hex = '0' + hex;
             }
             
             // Pad to desired length
-            const targetLength = (length || Math.ceil(hex.length / 2)) * 2;
+            const targetLength = length * 2;
             hex = hex.padStart(targetLength, '0');
             
             // Convert to byte array
             const bytes = [];
-            for (let i = 0; i < hex.length; i += 2) {
+            for (let i = 0; i < targetLength; i += 2) {
                 bytes.push(parseInt(hex.substr(i, 2), 16));
             }
             
             if (endian === 'le') {
                 bytes.reverse();
-            }
-            
-            // Ensure we have the right length
-            while (bytes.length < length) {
-                bytes.push(0);
             }
             
             return bytes.slice(0, length);
@@ -232,12 +235,13 @@
     
     /**
      * Instruction Coder
-     * Handles encoding/decoding of instruction data
+     * Handles encoding/decoding of instruction data with proper Anchor discriminators
      */
     class InstructionCoder {
         constructor(idl) {
             this.idl = idl;
             this.ixLayouts = {};
+            this.discriminators = {};
             this._buildLayouts();
         }
         
@@ -252,46 +256,134 @@
                     args: ix.args || []
                 };
             });
+            
+            // Pre-calculated discriminators for walletwars_escrow
+            // These are the first 8 bytes of SHA256("global:snake_case_name")
+            this.discriminators = {
+                'initializeTournament': [175, 175, 109, 127, 69, 165, 88, 67],
+                'registerPlayer': [248, 72, 226, 28, 151, 239, 11, 227],
+                'finalizeTournament': [168, 246, 161, 100, 168, 203, 36, 178],
+                'distributePrize': [97, 95, 196, 160, 129, 41, 139, 229],
+                'collectPlatformFees': [235, 177, 209, 73, 42, 138, 230, 95],
+                'cancelTournament': [206, 250, 116, 57, 8, 163, 255, 27],
+                'refundPlayer': [47, 99, 202, 211, 198, 215, 134, 124]
+            };
         }
         
-        encode(ixName, args = {}) {
+        encode(ixName, args = []) {
             const layout = this.ixLayouts[ixName];
             if (!layout) {
                 throw new Error(`Unknown instruction: ${ixName}`);
             }
             
-            // Simple encoding: instruction index + serialized args
-            const data = [layout.index];
+            // Get discriminator
+            const discriminator = this.discriminators[ixName];
+            if (!discriminator) {
+                throw new Error(`No discriminator found for instruction: ${ixName}`);
+            }
             
-            // Encode args (simplified - real implementation would use borsh)
-            const encoded = JSON.stringify(args);
-            const bytes = new TextEncoder().encode(encoded);
-            data.push(...bytes);
+            // Start with discriminator
+            const data = [...discriminator];
+            
+            // Handle specific instruction encoding
+            if (ixName === 'initializeTournament') {
+                // Args: [tournamentId, entryFee, maxPlayers, platformFeePercentage, startTime, endTime]
+                const [tournamentId, entryFee, maxPlayers, platformFeePercentage, startTime, endTime] = args;
+                
+                // 1. Encode string (tournament ID) - 4 byte length prefix + UTF8 bytes
+                const idBytes = new TextEncoder().encode(tournamentId);
+                const idLength = idBytes.length;
+                data.push(idLength & 0xff);
+                data.push((idLength >> 8) & 0xff);
+                data.push((idLength >> 16) & 0xff);
+                data.push((idLength >> 24) & 0xff);
+                data.push(...idBytes);
+                
+                // 2. Encode u64 (entry fee) - 8 bytes little endian
+                // entryFee should be a BN instance
+                if (entryFee && typeof entryFee.toArray === 'function') {
+                    const entryFeeArray = entryFee.toArray('le', 8);
+                    data.push(...entryFeeArray);
+                } else {
+                    // Fallback if not a BN
+                    const val = BigInt(entryFee || 0);
+                    for (let i = 0; i < 8; i++) {
+                        data.push(Number((val >> BigInt(i * 8)) & BigInt(0xff)));
+                    }
+                }
+                
+                // 3. Encode u32 (max players) - 4 bytes little endian
+                const maxP = maxPlayers || 0;
+                data.push(maxP & 0xff);
+                data.push((maxP >> 8) & 0xff);
+                data.push((maxP >> 16) & 0xff);
+                data.push((maxP >> 24) & 0xff);
+                
+                // 4. Encode u8 (platform fee percentage)
+                data.push((platformFeePercentage || 0) & 0xff);
+                
+                // 5. Encode i64 (start time) - 8 bytes little endian
+                if (startTime && typeof startTime.toArray === 'function') {
+                    const startTimeArray = startTime.toArray('le', 8);
+                    data.push(...startTimeArray);
+                } else {
+                    const val = BigInt(startTime || 0);
+                    for (let i = 0; i < 8; i++) {
+                        data.push(Number((val >> BigInt(i * 8)) & BigInt(0xff)));
+                    }
+                }
+                
+                // 6. Encode i64 (end time) - 8 bytes little endian
+                if (endTime && typeof endTime.toArray === 'function') {
+                    const endTimeArray = endTime.toArray('le', 8);
+                    data.push(...endTimeArray);
+                } else {
+                    const val = BigInt(endTime || 0);
+                    for (let i = 0; i < 8; i++) {
+                        data.push(Number((val >> BigInt(i * 8)) & BigInt(0xff)));
+                    }
+                }
+            } else if (ixName === 'registerPlayer') {
+                // No args for registerPlayer
+            } else {
+                // For other instructions, implement as needed
+                console.warn(`Instruction ${ixName} encoding not fully implemented`);
+            }
             
             return Buffer.from(data);
         }
         
         decode(data) {
-            if (!data || data.length === 0) {
+            if (!data || data.length < 8) {
                 throw new Error('Invalid instruction data');
             }
             
-            const index = data[0];
-            const ixName = Object.values(this.ixLayouts).find(l => l.index === index)?.name;
+            // Extract discriminator (first 8 bytes)
+            const discriminator = Array.from(data.slice(0, 8));
+            
+            // Find matching instruction
+            let ixName = null;
+            for (const [name, disc] of Object.entries(this.discriminators)) {
+                if (this._arraysEqual(discriminator, disc)) {
+                    ixName = name;
+                    break;
+                }
+            }
             
             if (!ixName) {
-                throw new Error(`Unknown instruction index: ${index}`);
+                throw new Error(`Unknown instruction discriminator: [${discriminator.join(', ')}]`);
             }
             
-            // Decode args (simplified)
-            try {
-                const argData = data.slice(1);
-                const decoded = new TextDecoder().decode(argData);
-                const args = JSON.parse(decoded);
-                return { name: ixName, data: args };
-            } catch {
-                return { name: ixName, data: {} };
+            // TODO: Implement proper decoding based on instruction
+            return { name: ixName, data: {} };
+        }
+        
+        _arraysEqual(a, b) {
+            if (a.length !== b.length) return false;
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] !== b[i]) return false;
             }
+            return true;
         }
     }
     
@@ -364,7 +456,7 @@
         constructor(program, name, args) {
             this._program = program;
             this._ixName = name;
-            this._args = args;
+            this._args = args; // Array of arguments
             this._accounts = {};
             this._remainingAccounts = [];
             this._signers = [];
@@ -427,7 +519,7 @@
             // Add remaining accounts
             keys.push(...this._remainingAccounts);
             
-            // Encode instruction data
+            // Encode instruction data - pass args array to encoder
             const data = this._program._coder.instruction.encode(
                 this._ixName,
                 this._args
@@ -700,7 +792,7 @@
     global.Anchor = anchor;
     
     console.log('✅ Anchor.js browser implementation loaded successfully');
-    console.log('Version: Browser-compatible (WalletWars edition)');
+    console.log('Version: Browser-compatible (WalletWars edition) with proper instruction encoding');
     console.log('Available at: window.anchor');
     
 })(typeof window !== 'undefined' ? window : global);
