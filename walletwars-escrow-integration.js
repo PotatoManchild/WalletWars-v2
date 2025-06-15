@@ -60,12 +60,14 @@ class WalletWarsEscrowIntegration {
             // Create minimal BN fallback
             this.BN = class BN {
                 constructor(value) {
-                    this.value = BigInt(value);
+                    this.value = BigInt(Math.floor(Number(value)));
                 }
                 toString() { return this.value.toString(); }
                 toNumber() { return Number(this.value); }
                 toArray(endian = 'be', length = 8) {
-                    const hex = this.value.toString(16).padStart(length * 2, '0');
+                    let hex = this.value.toString(16);
+                    if (hex.length % 2 !== 0) hex = '0' + hex;
+                    hex = hex.padStart(length * 2, '0');
                     const bytes = [];
                     for (let i = 0; i < hex.length; i += 2) {
                         bytes.push(parseInt(hex.substr(i, 2), 16));
@@ -75,6 +77,9 @@ class WalletWarsEscrowIntegration {
                 }
                 toBuffer(endian = 'be', length = 8) {
                     return new Uint8Array(this.toArray(endian, length));
+                }
+                toJSON() {
+                    return this.toString();
                 }
             };
         }
@@ -243,51 +248,65 @@ class WalletWarsEscrowIntegration {
             });
 
             // If Anchor is available, use it
-if (this.program && this.BN) {
-    // ADD THIS DEBUG CODE HERE (before const tx)
-    // Debug what values we're passing
-    console.log('Debug - Values being passed to Anchor:', {
-        tournamentId,
-        entryFee: entryFee * this.LAMPORTS_PER_SOL,
-        maxPlayers,
-        platformFeePercentage,
-        startTime,
-        endTime
-    });
+            if (this.program && this.BN) {
+                // Debug what values we're passing
+                console.log('Debug - Values being passed to Anchor:', {
+                    tournamentId,
+                    entryFee: entryFee * this.LAMPORTS_PER_SOL,
+                    maxPlayers,
+                    platformFeePercentage,
+                    startTime,
+                    endTime
+                });
 
-    // Test BN creation
-    const testEntryFee = new this.BN(entryFee * this.LAMPORTS_PER_SOL);
-    const testStartTime = new this.BN(startTime);
-    const testEndTime = new this.BN(endTime);
-    console.log('Debug - BNs created:', {
-        entryFee: testEntryFee.toString(),
-        startTime: testStartTime.toString(),
-        endTime: testEndTime.toString()
-    });
-                const tx = await this.program.methods
-                    .initializeTournament(
-                        tournamentId,
-                        new this.BN(entryFee * this.LAMPORTS_PER_SOL),
-                        maxPlayers,
-                        platformFeePercentage,
-                        new this.BN(startTime),
-                        new this.BN(endTime)
-                    )
-                    .accounts({
-                        tournament: tournamentPDA,
-                        escrowAccount: escrowPDA,
-                        authority: this.wallet.publicKey,
-                        systemProgram: this.SystemProgram.programId,
-                    })
-                    .rpc();
+                // FIX: Create BN instances properly without exposing BigInt
+                const entryFeeBN = new this.BN(Math.floor(entryFee * this.LAMPORTS_PER_SOL));
+                const startTimeBN = new this.BN(Math.floor(startTime));
+                const endTimeBN = new this.BN(Math.floor(endTime));
+                
+                // Debug BN creation (without logging the actual BN objects)
+                console.log('Debug - BNs created successfully');
+                console.log('Debug - BN values:', {
+                    entryFee: entryFeeBN.toString(),
+                    startTime: startTimeBN.toString(),
+                    endTime: endTimeBN.toString()
+                });
+                
+                try {
+                    const tx = await this.program.methods
+                        .initializeTournament(
+                            tournamentId,
+                            entryFeeBN,
+                            maxPlayers,
+                            platformFeePercentage,
+                            startTimeBN,
+                            endTimeBN
+                        )
+                        .accounts({
+                            tournament: tournamentPDA,
+                            escrowAccount: escrowPDA,
+                            authority: this.wallet.publicKey,
+                            systemProgram: this.SystemProgram.programId,
+                        })
+                        .rpc();
 
-                console.log('✅ Tournament initialized with Anchor!');
-                return {
-                    success: true,
-                    signature: tx,
-                    tournamentPDA: tournamentPDA.toString(),
-                    escrowPDA: escrowPDA.toString()
-                };
+                    console.log('✅ Tournament initialized with Anchor!');
+                    return {
+                        success: true,
+                        signature: tx,
+                        tournamentPDA: tournamentPDA.toString(),
+                        escrowPDA: escrowPDA.toString()
+                    };
+                } catch (anchorError) {
+                    console.error('❌ Anchor transaction failed:', anchorError);
+                    
+                    // If it's a serialization error, provide more context
+                    if (anchorError.message && anchorError.message.includes('serialize')) {
+                        console.error('Serialization issue detected. This might be due to BigInt handling.');
+                    }
+                    
+                    throw anchorError;
+                }
             } else {
                 // Fallback: Create manual instruction
                 console.log('⚠️ Using direct transaction (Anchor not available)');

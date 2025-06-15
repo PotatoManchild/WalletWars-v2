@@ -36,7 +36,7 @@
             if (typeof number === 'string') {
                 this.value = BigInt(parseInt(number, base));
             } else if (typeof number === 'number') {
-                this.value = BigInt(number);
+                this.value = BigInt(Math.floor(number));
             } else if (number instanceof BN) {
                 this.value = number.value;
             } else if (typeof number === 'bigint') {
@@ -60,20 +60,35 @@
             return Number(this.value);
         }
         
-        toArray(endian = 'be', length) {
-            const hex = this.value.toString(16);
-            const padded = hex.padStart((length || Math.ceil(hex.length / 2)) * 2, '0');
-            const bytes = [];
+        toArray(endian = 'be', length = 8) {
+            // Convert to hex string first
+            let hex = this.value.toString(16);
             
-            for (let i = 0; i < padded.length; i += 2) {
-                bytes.push(parseInt(padded.substr(i, 2), 16));
+            // Pad to even number of characters
+            if (hex.length % 2 !== 0) {
+                hex = '0' + hex;
+            }
+            
+            // Pad to desired length
+            const targetLength = (length || Math.ceil(hex.length / 2)) * 2;
+            hex = hex.padStart(targetLength, '0');
+            
+            // Convert to byte array
+            const bytes = [];
+            for (let i = 0; i < hex.length; i += 2) {
+                bytes.push(parseInt(hex.substr(i, 2), 16));
             }
             
             if (endian === 'le') {
                 bytes.reverse();
             }
             
-            return bytes;
+            // Ensure we have the right length
+            while (bytes.length < length) {
+                bytes.push(0);
+            }
+            
+            return bytes.slice(0, length);
         }
         
         toBuffer(endian = 'be', length = 8) {
@@ -118,6 +133,17 @@
         
         gte(other) {
             return this.value >= new BN(other).value;
+        }
+        
+        // IMPORTANT: Custom JSON serialization to avoid BigInt issues
+        toJSON() {
+            // Return as string to avoid BigInt serialization errors
+            return this.toString();
+        }
+        
+        // For Anchor compatibility - serialize to bytes for RPC
+        serialize() {
+            return this.toArray('le', 8);
         }
     }
     
