@@ -91,6 +91,10 @@ class WalletWarsEscrowIntegration {
         this.PROGRAM_ID = new this.PublicKey('AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7');
         this.PLATFORM_WALLET = new this.PublicKey('5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
         
+        console.log('🎮 Escrow Integration Program Configuration:');
+        console.log('   Program ID:', this.PROGRAM_ID.toString());
+        console.log('   Platform Wallet:', this.PLATFORM_WALLET.toString());
+        
         // Initialize connection
         this.connection = new this.Connection(
             'https://api.devnet.solana.com',
@@ -230,6 +234,21 @@ class WalletWarsEscrowIntegration {
 
         try {
             console.log(`🎮 Initializing tournament ${tournamentId} on-chain...`);
+            
+            // First, verify the program account is valid
+            const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
+            if (!programInfo) {
+                throw new Error('Program account not found on chain!');
+            }
+            if (!programInfo.executable) {
+                throw new Error('Program account is not executable!');
+            }
+            console.log('✅ Program account verified:', {
+                address: this.PROGRAM_ID.toString(),
+                owner: programInfo.owner.toString(),
+                executable: programInfo.executable,
+                dataLength: programInfo.data.length
+            });
 
             // Generate PDAs
             const [tournamentPDA, tournamentBump] = await this.PublicKey.findProgramAddress(
