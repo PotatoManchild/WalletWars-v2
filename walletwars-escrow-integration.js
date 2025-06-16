@@ -842,6 +842,380 @@ class WalletWarsEscrowIntegration {
     }
 
     /**
+     * Initialize tournament with compute budget and better error handling
+     * This method adds compute budget instructions to prevent transaction failures
+     */
+    async initializeTournamentWithComputeBudget(tournamentData) {
+        // Auto-generate unique ID if not provided
+        if (!tournamentData.tournamentId) {
+            tournamentData.tournamentId = this.generateUniqueTournamentId();
+            console.log(`📝 Auto-generated tournament ID: ${tournamentData.tournamentId}`);
+        }
+
+        const {
+            tournamentId,
+            entryFee,
+            maxPlayers,
+            platformFeePercentage = 10,
+            startTime,
+            endTime
+        } = tournamentData;
+
+        try {
+            console.log(`🎮 Initializing tournament ${tournamentId} with compute budget...`);
+            console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+            
+            // Check wallet balance first
+            const balance = await this.connection.getBalance(this.wallet.publicKey);
+            console.log(`👛 Current wallet balance: ${balance / this.LAMPORTS_PER_SOL} SOL`);
+            
+            // Estimate costs
+            const costs = await this.estimateTournamentCreationCost();
+            if (costs && balance < costs.totalCost + (0.01 * this.LAMPORTS_PER_SOL)) {
+                console.error(`❌ Insufficient balance. Have: ${balance / this.LAMPORTS_PER_SOL} SOL, Need: ~${(costs.totalCost + (0.01 * this.LAMPORTS_PER_SOL)) / this.LAMPORTS_PER_SOL} SOL`);
+                return {
+                    success: false,
+                    error: 'Insufficient balance for transaction and fees',
+                    currentBalance: balance / this.LAMPORTS_PER_SOL,
+                    requiredBalance: (costs.totalCost + (0.01 * this.LAMPORTS_PER_SOL)) / this.LAMPORTS_PER_SOL
+                };
+            }
+            
+            // Generate PDAs
+            const [tournamentPDA, tournamentBump] = await this.PublicKey.findProgramAddress(
+                [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
+                this.PROGRAM_ID
+            );
+
+            const [escrowPDA, escrowBump] = await this.PublicKey.findProgramAddress(
+                [this.Buffer.from('escrow'), this.Buffer.from(tournamentId)],
+                this.PROGRAM_ID
+            );
+
+            console.log('📍 PDAs generated:', {
+                tournament: tournamentPDA.toString(),
+                escrow: escrowPDA.toString()
+            });
+            
+            // Check if tournament already exists
+            const existingAccount = await this.connection.getAccountInfo(tournamentPDA);
+            if (existingAccount) {
+                console.error('❌ Tournament account already exists!');
+                return {
+                    success: false,
+                    error: 'Tournament ID already exists. Please use a unique ID.',
+                    existingId: tournamentId,
+                    suggestedId: this.generateUniqueTournamentId()
+                };
+            }
+
+            // Check we have ComputeBudgetProgram
+            const ComputeBudgetProgram = solanaWeb3.ComputeBudgetProgram;
+            if (!ComputeBudgetProgram) {
+                console.warn('⚠️ ComputeBudgetProgram not available, proceeding without it');
+            }
+
+            if (this.program && this.BN) {
+                console.log('🚀 Using Anchor with compute budget...');
+                
+                // Create BN instances
+                const entryFeeBN = new this.BN(Math.floor(entryFee * this.LAMPORTS_PER_SOL));
+                const startTimeBN = new this.BN(Math.floor(startTime));
+                const endTimeBN = new this.BN(Math.floor(endTime));
+                
+                try {
+                    // Build the main instruction
+                    const txBuilder = this.program.methods
+                        .initializeTournament(
+                            tournamentId,
+                            entryFeeBN,
+                            maxPlayers,
+                            platformFeePercentage,
+                            startTimeBN,
+                            endTimeBN
+                        )
+                        .accounts({
+                            tournament: tournamentPDA,
+                            escrowAccount: escrowPDA,
+                            authority: this.wallet.publicKey,
+                            systemProgram: this.SystemProgram.programId,
+                        });
+
+                    // Get the transaction
+                    const tx = await txBuilder.transaction();
+                    
+                    // Add compute budget instructions if available
+                    if (ComputeBudgetProgram) {
+                        // Request more compute units
+                        const computeIx = ComputeBudgetProgram.setComputeUnitLimit({
+                            units: 300_000 // Increase from default 200k
+                        });
+                        
+                        // Set a higher priority fee to ensure transaction goes through
+                        const priorityIx = ComputeBudgetProgram.setComputeUnitPrice({
+                            microLamports: 1000 // Small priority fee
+                        });
+                        
+                        // Add these instructions BEFORE the main instruction
+                        tx.instructions = [computeIx, priorityIx, ...tx.instructions];
+                        
+                        console.log('✅ Added compute budget instructions (300k units, 1000 microLamports priority)');
+                    }
+                    
+                    // Get fresh blockhash
+                    const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
+                    tx.recentBlockhash = blockhash;
+                    tx.feePayer = this.wallet.publicKey;
+                    
+                    // Sign and send transaction manually for better control
+                    const signed = await this.wallet.signTransaction(tx);
+                    
+                    console.log('📤 Sending transaction...');
+                    const signature = await this.connection.sendRawTransaction(
+                        signed.serialize(),
+                        {
+                            skipPreflight: false,
+                            preflightCommitment: 'confirmed',
+                            maxRetries: 3
+                        }
+                    );
+                    
+                    console.log('⏳ Waiting for confirmation...');
+                    const confirmation = await this.connection.confirmTransaction({
+                        signature,
+                        blockhash,
+                        lastValidBlockHeight
+                    }, 'confirmed');
+                    
+                    if (confirmation.value.err) {
+                        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+                    }
+                    
+                    console.log('✅ Tournament initialized successfully!');
+                    console.log(`📝 Transaction: ${signature}`);
+                    console.log(`🔗 https://devnet.explorer.solana.com/tx/${signature}`);
+                    
+                    return {
+                        success: true,
+                        signature,
+                        tournamentPDA: tournamentPDA.toString(),
+                        escrowPDA: escrowPDA.toString(),
+                        tournamentId,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                } catch (error) {
+                    console.error('❌ Transaction failed:', error);
+                    
+                    // Parse specific errors
+                    if (error.message?.includes('0x5')) {
+                        return {
+                            success: false,
+                            error: 'Transaction failed: Insufficient funds for rent-exempt account creation. Make sure you have enough SOL.',
+                            details: 'This transaction creates new accounts that require rent deposits.',
+                            requiredBalance: costs?.totalCostSOL
+                        };
+                    }
+                    
+                    if (error.message?.includes('0x1')) {
+                        return {
+                            success: false,
+                            error: 'Transaction failed: Insufficient funds in wallet.',
+                            details: 'Please ensure your wallet has enough SOL for transaction fees and account rent.'
+                        };
+                    }
+                    
+                    throw error;
+                }
+            } else {
+                // Manual transaction with compute budget
+                console.log('⚠️ Using manual transaction with compute budget...');
+                
+                const instructions = [];
+                
+                // Add compute budget if available
+                if (ComputeBudgetProgram) {
+                    instructions.push(
+                        ComputeBudgetProgram.setComputeUnitLimit({ units: 300_000 }),
+                        ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 })
+                    );
+                    console.log('✅ Added compute budget instructions');
+                }
+                
+                // Add main instruction
+                const instructionData = this.encodeInitializeTournamentData({
+                    tournamentId,
+                    entryFee: entryFee * this.LAMPORTS_PER_SOL,
+                    maxPlayers,
+                    platformFeePercentage,
+                    startTime,
+                    endTime
+                });
+                
+                instructions.push(new this.TransactionInstruction({
+                    programId: this.PROGRAM_ID,
+                    keys: [
+                        { pubkey: tournamentPDA, isSigner: false, isWritable: true },
+                        { pubkey: escrowPDA, isSigner: false, isWritable: false },
+                        { pubkey: this.wallet.publicKey, isSigner: true, isWritable: true },
+                        { pubkey: this.SystemProgram.programId, isSigner: false, isWritable: false }
+                    ],
+                    data: instructionData
+                }));
+                
+                const transaction = new this.Transaction().add(...instructions);
+                
+                // Send with better error handling
+                const { blockhash } = await this.connection.getLatestBlockhash();
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = this.wallet.publicKey;
+                
+                const signature = await this.wallet.sendTransaction(transaction, this.connection, {
+                    skipPreflight: false,
+                    maxRetries: 3
+                });
+                
+                await this.connection.confirmTransaction(signature, 'confirmed');
+                
+                console.log('✅ Tournament initialized successfully!');
+                console.log(`⏰ Completed at: ${new Date().toISOString()}`);
+                
+                return {
+                    success: true,
+                    signature,
+                    tournamentPDA: tournamentPDA.toString(),
+                    escrowPDA: escrowPDA.toString(),
+                    tournamentId,
+                    timestamp: new Date().toISOString()
+                };
+            }
+
+        } catch (error) {
+            console.error('❌ Failed to initialize tournament:', error);
+            console.error('Stack trace:', error.stack);
+            
+            // Enhanced error messages for common issues
+            if (error.message?.includes('Transaction reverted during simulation')) {
+                return {
+                    success: false,
+                    error: 'Transaction simulation failed. This usually indicates insufficient funds or account already exists.',
+                    details: error.message,
+                    suggestedActions: [
+                        'Check wallet balance',
+                        'Use a unique tournament ID',
+                        'Ensure you are on devnet',
+                        'Try the estimateTournamentCreationCost() method'
+                    ]
+                };
+            }
+            
+            return { 
+                success: false, 
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
+        }
+    }
+
+    /**
+     * Estimate the rent cost for tournament creation
+     */
+    async estimateTournamentCreationCost() {
+        try {
+            console.log('💰 Estimating tournament creation costs...');
+            
+            // Tournament account size (approximate)
+            const TOURNAMENT_ACCOUNT_SIZE = 8 + 32 + 64 + 8 + 4 + 4 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 100; // ~350 bytes
+            
+            const tournamentRent = await this.connection.getMinimumBalanceForRentExemption(TOURNAMENT_ACCOUNT_SIZE);
+            
+            // Transaction fees (approximate)
+            const transactionFee = 5000; // 0.000005 SOL base fee
+            const priorityFee = 300; // Priority fee with compute budget
+            
+            const totalCost = tournamentRent + transactionFee + priorityFee;
+            
+            console.log('💰 Estimated costs:');
+            console.log(`   Tournament account rent: ${tournamentRent / this.LAMPORTS_PER_SOL} SOL`);
+            console.log(`   Transaction fee: ~${transactionFee / this.LAMPORTS_PER_SOL} SOL`);
+            console.log(`   Priority fee: ~${priorityFee / this.LAMPORTS_PER_SOL} SOL`);
+            console.log(`   Total: ~${totalCost / this.LAMPORTS_PER_SOL} SOL`);
+            console.log(`   Recommended balance: ${(totalCost + (0.01 * this.LAMPORTS_PER_SOL)) / this.LAMPORTS_PER_SOL} SOL (includes buffer)`);
+            
+            return {
+                tournamentRent,
+                transactionFee,
+                priorityFee,
+                totalCost,
+                totalCostSOL: totalCost / this.LAMPORTS_PER_SOL,
+                recommendedBalance: (totalCost + (0.01 * this.LAMPORTS_PER_SOL)) / this.LAMPORTS_PER_SOL
+            };
+        } catch (error) {
+            console.error('Failed to estimate costs:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Quick test to verify wallet and balance
+     */
+    async checkWalletStatus() {
+        try {
+            console.log('🔍 Checking wallet status...');
+            console.log(`⏰ ${new Date().toISOString()}`);
+            
+            if (!this.wallet || !this.wallet.publicKey) {
+                console.error('❌ No wallet connected!');
+                return {
+                    success: false,
+                    error: 'No wallet connected'
+                };
+            }
+            
+            const pubkey = this.wallet.publicKey;
+            const balance = await this.connection.getBalance(pubkey);
+            
+            // Check if on devnet
+            const genesisHash = await this.connection.getGenesisHash();
+            const isDevnet = genesisHash === 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+            
+            // Estimate costs
+            const costs = await this.estimateTournamentCreationCost();
+            
+            const status = {
+                wallet: pubkey.toString(),
+                balance: balance / this.LAMPORTS_PER_SOL,
+                network: isDevnet ? 'devnet' : 'unknown',
+                sufficientBalance: balance >= (costs?.totalCost || 0),
+                costs: costs,
+                timestamp: new Date().toISOString()
+            };
+            
+            console.log('📊 Wallet Status:');
+            console.log(`   Address: ${status.wallet}`);
+            console.log(`   Balance: ${status.balance} SOL`);
+            console.log(`   Network: ${status.network}`);
+            console.log(`   Sufficient for tournament: ${status.sufficientBalance ? '✅ Yes' : '❌ No'}`);
+            
+            if (!isDevnet) {
+                console.warn('⚠️ WARNING: Not on devnet! Please switch to devnet in Phantom settings.');
+            }
+            
+            return {
+                success: true,
+                ...status
+            };
+            
+        } catch (error) {
+            console.error('❌ Failed to check wallet status:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+
+    /**
      * Enhanced test function with better diagnostics
      */
     async testConnection() {
