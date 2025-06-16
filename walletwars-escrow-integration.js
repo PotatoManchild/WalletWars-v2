@@ -3,7 +3,7 @@
 // Program ID: 12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y (DEPLOYED TO DEVNET!)
 // Deployment Date: June 16, 2025
 // Build ID: e0da0f2b-2d48-44e6-b25e-cd803c6b9f72
-// Last Updated: June 16, 2025 - Added enhanced error handling and unique tournament IDs
+// Last Updated: June 16, 2025 - Added enhanced error handling, unique tournament IDs, and safe retry methods
 
 // IMPORTANT: This uses the browser versions of the libraries loaded from CDN
 // Make sure Solana Web3.js and Anchor are loaded before this script
@@ -225,308 +225,135 @@ class WalletWarsEscrowIntegration {
 
     /**
      * Generate a unique tournament ID with timestamp
+     * UPDATED: More unique to avoid collisions
      */
     generateUniqueTournamentId(prefix = 'tournament') {
         const timestamp = Date.now();
         const random = Math.random().toString(36).substr(2, 9);
-        return `${prefix}_${timestamp}_${random}`;
+        const nanoTime = process.hrtime ? process.hrtime()[1] : Math.floor(Math.random() * 1000000);
+        return `${prefix}_${timestamp}_${random}_${nanoTime}`;
     }
 
     /**
      * Initialize a new tournament on-chain with enhanced error handling
      * This is the MAIN method to use for tournament creation
+     * NOW WITH AUTOMATIC RETRY ON ID COLLISION
      */
     async initializeTournament(tournamentData) {
-        // Auto-generate unique ID if not provided
-        if (!tournamentData.tournamentId) {
-            tournamentData.tournamentId = this.generateUniqueTournamentId();
-            console.log(`📝 Auto-generated tournament ID: ${tournamentData.tournamentId}`);
+        // Check if this might be a duplicate ID issue
+        if (tournamentData.tournamentId) {
+            const exists = await this.tournamentExists(tournamentData.tournamentId);
+            if (exists) {
+                console.warn(`⚠️ Tournament ID ${tournamentData.tournamentId} already exists!`);
+                console.log('🔄 Generating new unique ID...');
+                // Remove the existing ID to force generation of a new one
+                delete tournamentData.tournamentId;
+            }
         }
+        
+        // Use the safe method with automatic retry
+        return await this.initializeTournamentSafe(tournamentData);
+    }
 
-        const {
-            tournamentId,
-            entryFee,
-            maxPlayers,
-            platformFeePercentage = 10,
-            startTime,
-            endTime
-        } = tournamentData;
+    /**
+     * Initialize tournament with automatic retry on ID collision
+     */
+    async initializeTournamentSafe(tournamentData, maxRetries = 3) {
+        let attempts = 0;
+        let lastError = null;
+        
+        while (attempts < maxRetries) {
+            attempts++;
+            console.log(`🔄 Attempt ${attempts}/${maxRetries}...`);
+            
+            // Always generate a fresh ID for safety
+            const uniqueData = {
+                ...tournamentData,
+                tournamentId: tournamentData.tournamentId || this.generateUniqueTournamentId(tournamentData.prefix || 'tournament')
+            };
+            
+            console.log(`🆔 Using tournament ID: ${uniqueData.tournamentId}`);
+            
+            try {
+                // Try with compute budget first
+                const result = await this.initializeTournamentWithComputeBudget(uniqueData);
+                
+                if (result.success) {
+                    console.log(`✅ Success on attempt ${attempts}!`);
+                    return result;
+                }
+                
+                // If it failed due to ID collision, retry
+                if (result.error?.includes('already exists') || result.errorCode === 101) {
+                    console.log('⚠️ ID collision detected, retrying with new ID...');
+                    lastError = result.error;
+                    // Force a new ID for next attempt
+                    delete tournamentData.tournamentId;
+                    continue;
+                }
+                
+                // For other errors, return immediately
+                return result;
+                
+            } catch (error) {
+                console.error(`❌ Attempt ${attempts} failed:`, error.message);
+                lastError = error;
+                
+                // If it's an ID collision error, retry
+                if (error.message?.includes('0x65') || error.message?.includes('already exists')) {
+                    console.log('⚠️ Detected account collision, retrying...');
+                    delete tournamentData.tournamentId;
+                    continue;
+                }
+                
+                // For other errors, throw
+                throw error;
+            }
+        }
+        
+        // All retries failed
+        return {
+            success: false,
+            error: `Failed after ${maxRetries} attempts. Last error: ${lastError?.message || lastError}`,
+            suggestion: 'Try again with a different prefix or check if there are network issues.'
+        };
+    }
 
+    /**
+     * Check if a tournament ID already exists on-chain
+     */
+    async tournamentExists(tournamentId) {
         try {
-            console.log(`🎮 Initializing tournament ${tournamentId} on-chain...`);
-            console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
-            
-            // Verify we're on devnet
-            const version = await this.connection.getVersion();
-            console.log('🌐 Network version:', version['solana-core']);
-            
-            // Verify the program account is valid
-            const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
-            if (!programInfo) {
-                throw new Error('Program account not found on chain! Please check deployment.');
-            }
-            if (!programInfo.executable) {
-                throw new Error('Program account is not executable!');
-            }
-            console.log('✅ Program account verified:', {
-                address: this.PROGRAM_ID.toString(),
-                owner: programInfo.owner.toString(),
-                executable: programInfo.executable,
-                dataLength: programInfo.data.length
-            });
-
-            // Generate PDAs
-            const [tournamentPDA, tournamentBump] = await this.PublicKey.findProgramAddress(
+            const [tournamentPDA] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
             );
-
-            const [escrowPDA, escrowBump] = await this.PublicKey.findProgramAddress(
-                [this.Buffer.from('escrow'), this.Buffer.from(tournamentId)],
-                this.PROGRAM_ID
-            );
-
-            console.log('📍 PDAs generated:', {
-                tournament: tournamentPDA.toString(),
-                tournamentBump,
-                escrow: escrowPDA.toString(),
-                escrowBump
-            });
             
-            // Check if tournament already exists
-            console.log('🔍 Checking if tournament already exists...');
-            const existingAccount = await this.connection.getAccountInfo(tournamentPDA);
-            if (existingAccount) {
-                console.error('❌ Tournament account already exists!');
-                console.error('   Tournament ID:', tournamentId);
-                console.error('   PDA:', tournamentPDA.toString());
-                console.error('   Try using a different tournament ID or use generateUniqueTournamentId()');
-                return {
-                    success: false,
-                    error: 'Tournament ID already exists. Please use a unique ID.',
-                    existingId: tournamentId,
-                    suggestedId: this.generateUniqueTournamentId()
-                };
-            }
-            
-            console.log('✅ Tournament ID is available');
-            
-            // Calculate rent for the tournament account
-            const TOURNAMENT_ACCOUNT_SIZE = 8 + 32 + 64 + 8 + 4 + 4 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 100; // ~350 bytes
-            const rentExemptAmount = await this.connection.getMinimumBalanceForRentExemption(TOURNAMENT_ACCOUNT_SIZE);
-            
-            console.log(`💰 Rent exempt amount needed: ${rentExemptAmount / this.LAMPORTS_PER_SOL} SOL`);
-            
-            // Check wallet balance
-            const walletBalance = await this.connection.getBalance(this.wallet.publicKey);
-            console.log(`👛 Wallet balance: ${walletBalance / this.LAMPORTS_PER_SOL} SOL`);
-            console.log(`   Wallet address: ${this.wallet.publicKey.toString()}`);
-            
-            if (walletBalance < rentExemptAmount + 5000) {
-                return {
-                    success: false,
-                    error: `Insufficient balance. Need at least ${(rentExemptAmount + 5000) / this.LAMPORTS_PER_SOL} SOL`,
-                    currentBalance: walletBalance / this.LAMPORTS_PER_SOL,
-                    requiredBalance: (rentExemptAmount + 5000) / this.LAMPORTS_PER_SOL
-                };
-            }
-
-            // If Anchor is available, use it
-            if (this.program && this.BN) {
-                console.log('🚀 Using Anchor for transaction...');
-                
-                // Create BN instances properly
-                const entryFeeBN = new this.BN(Math.floor(entryFee * this.LAMPORTS_PER_SOL));
-                const startTimeBN = new this.BN(Math.floor(startTime));
-                const endTimeBN = new this.BN(Math.floor(endTime));
-                
-                console.log('📊 Transaction parameters:', {
-                    tournamentId,
-                    entryFee: `${entryFee} SOL (${entryFeeBN.toString()} lamports)`,
-                    maxPlayers,
-                    platformFeePercentage: `${platformFeePercentage}%`,
-                    startTime: new Date(startTime * 1000).toISOString(),
-                    endTime: new Date(endTime * 1000).toISOString()
-                });
-                
-                try {
-                    // Build and send transaction
-                    const tx = await this.program.methods
-                        .initializeTournament(
-                            tournamentId,
-                            entryFeeBN,
-                            maxPlayers,
-                            platformFeePercentage,
-                            startTimeBN,
-                            endTimeBN
-                        )
-                        .accounts({
-                            tournament: tournamentPDA,
-                            escrowAccount: escrowPDA,
-                            authority: this.wallet.publicKey,
-                            systemProgram: this.SystemProgram.programId,
-                        })
-                        .rpc();
-
-                    console.log('✅ Tournament initialized with Anchor!');
-                    console.log(`📝 Transaction signature: ${tx}`);
-                    console.log(`🔗 View on explorer: https://devnet.explorer.solana.com/tx/${tx}`);
-                    console.log(`⏰ Completed at: ${new Date().toISOString()}`);
-                    
-                    return {
-                        success: true,
-                        signature: tx,
-                        tournamentPDA: tournamentPDA.toString(),
-                        escrowPDA: escrowPDA.toString(),
-                        tournamentId,
-                        timestamp: new Date().toISOString()
-                    };
-                } catch (anchorError) {
-                    console.error('❌ Anchor transaction failed:', anchorError);
-                    
-                    // Enhanced error parsing
-                    if (anchorError.error) {
-                        const errorCode = anchorError.error.errorCode?.code;
-                        const errorMsg = anchorError.error.errorMessage;
-                        
-                        console.error('Program error details:', {
-                            code: errorCode,
-                            message: errorMsg,
-                            number: anchorError.error.errorCode?.number
-                        });
-                        
-                        // Map error codes to user-friendly messages
-                        const errorMap = {
-                            'InvalidFeePercentage': 'Platform fee must be 20% or less',
-                            'InvalidEntryFee': 'Entry fee must be greater than 0',
-                            'InvalidMaxPlayers': 'Max players must be between 1 and 1000',
-                            'InvalidTimeRange': 'End time must be after start time'
-                        };
-                        
-                        return {
-                            success: false,
-                            error: errorMap[errorCode] || errorMsg || 'Transaction failed',
-                            errorCode,
-                            logs: anchorError.logs
-                        };
-                    }
-                    
-                    // Check for custom error code
-                    if (anchorError.message && anchorError.message.includes('custom program error')) {
-                        const match = anchorError.message.match(/0x([0-9a-f]+)/i);
-                        if (match) {
-                            const errorCode = parseInt(match[1], 16);
-                            console.error(`Custom error code: ${errorCode} (0x${match[1]})`);
-                            
-                            if (errorCode === 101) {
-                                return {
-                                    success: false,
-                                    error: 'Account already exists or insufficient lamports. Try a different tournament ID.',
-                                    errorCode: 101,
-                                    suggestedId: this.generateUniqueTournamentId()
-                                };
-                            }
-                        }
-                    }
-                    
-                    if (anchorError.logs) {
-                        console.error('Transaction logs:');
-                        anchorError.logs.forEach(log => console.error('  ', log));
-                    }
-                    
-                    throw anchorError;
-                }
-            } else {
-                // Fallback: Create manual instruction
-                console.log('⚠️ Using direct transaction (Anchor not available)');
-                
-                // Encode instruction data manually
-                const instructionData = this.encodeInitializeTournamentData({
-                    tournamentId,
-                    entryFee: entryFee * this.LAMPORTS_PER_SOL,
-                    maxPlayers,
-                    platformFeePercentage,
-                    startTime,
-                    endTime
-                });
-                
-                // Create instruction
-                const instruction = new this.TransactionInstruction({
-                    programId: this.PROGRAM_ID,
-                    keys: [
-                        { pubkey: tournamentPDA, isSigner: false, isWritable: true },
-                        { pubkey: escrowPDA, isSigner: false, isWritable: false },
-                        { pubkey: this.wallet.publicKey, isSigner: true, isWritable: true },
-                        { pubkey: this.SystemProgram.programId, isSigner: false, isWritable: false }
-                    ],
-                    data: instructionData
-                });
-                
-                // Create and send transaction
-                const transaction = new this.Transaction().add(instruction);
-                
-                // Get recent blockhash
-                const { blockhash } = await this.connection.getLatestBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = this.wallet.publicKey;
-                
-                // Simulate first
-                console.log('🔍 Simulating transaction...');
-                const simulation = await this.connection.simulateTransaction(transaction);
-                if (simulation.value.err) {
-                    console.error('❌ Simulation failed:', simulation.value.err);
-                    if (simulation.value.logs) {
-                        console.error('Logs:', simulation.value.logs);
-                    }
-                    return {
-                        success: false,
-                        error: 'Transaction simulation failed',
-                        simulationError: simulation.value.err,
-                        logs: simulation.value.logs
-                    };
-                }
-                
-                console.log('✅ Simulation successful, sending transaction...');
-                
-                // Use wallet adapter to sign and send
-                const signature = await this.wallet.sendTransaction(transaction, this.connection);
-                
-                // Wait for confirmation
-                await this.connection.confirmTransaction(signature, 'confirmed');
-                
-                console.log('✅ Tournament initialized with direct transaction!');
-                console.log(`⏰ Completed at: ${new Date().toISOString()}`);
-                
-                return {
-                    success: true,
-                    signature,
-                    tournamentPDA: tournamentPDA.toString(),
-                    escrowPDA: escrowPDA.toString(),
-                    tournamentId,
-                    timestamp: new Date().toISOString()
-                };
-            }
-
+            const account = await this.connection.getAccountInfo(tournamentPDA);
+            return !!account;
         } catch (error) {
-            console.error('❌ Failed to initialize tournament:', error);
-            console.error('Stack trace:', error.stack);
+            console.error('Error checking tournament existence:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Find an available tournament ID by checking on-chain
+     */
+    async findAvailableTournamentId(prefix = 'tournament', maxAttempts = 10) {
+        for (let i = 0; i < maxAttempts; i++) {
+            const id = this.generateUniqueTournamentId(prefix);
+            const exists = await this.tournamentExists(id);
             
-            // Provide helpful error messages
-            if (error.message.includes('Transaction simulation failed')) {
-                return {
-                    success: false,
-                    error: 'Transaction simulation failed. This usually means the account already exists or there\'s insufficient SOL.',
-                    details: error.message,
-                    suggestedId: this.generateUniqueTournamentId()
-                };
+            if (!exists) {
+                console.log(`✅ Found available ID: ${id}`);
+                return id;
             }
             
-            return { 
-                success: false, 
-                error: error.message,
-                timestamp: new Date().toISOString()
-            };
+            console.log(`❌ ID ${id} already exists, trying another...`);
         }
+        
+        throw new Error(`Could not find available tournament ID after ${maxAttempts} attempts`);
     }
     
     /**
@@ -1022,6 +849,15 @@ class WalletWarsEscrowIntegration {
                             success: false,
                             error: 'Transaction failed: Insufficient funds in wallet.',
                             details: 'Please ensure your wallet has enough SOL for transaction fees and account rent.'
+                        };
+                    }
+                    
+                    if (error.message?.includes('0x65') || error.message?.includes('custom program error: 0x65')) {
+                        return {
+                            success: false,
+                            error: 'Tournament ID already exists on-chain.',
+                            errorCode: 101,
+                            suggestedId: this.generateUniqueTournamentId()
                         };
                     }
                     
