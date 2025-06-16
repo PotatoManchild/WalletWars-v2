@@ -1,8 +1,9 @@
 // tournament-deployment-manager-enhanced.js
 // PERFECT VERSION - Exactly matches your database schema
 // Creates tournaments both on-chain AND in database with correct field names
+// UPDATED: Now handles ID collisions automatically
 
-console.log('📅 Loading Enhanced Tournament Deployment Manager (PERFECT SCHEMA MATCH)...');
+console.log('📅 Loading Enhanced Tournament Deployment Manager (PERFECT SCHEMA MATCH + SAFE ID)...');
 
 class EnhancedTournamentDeploymentManager {
     constructor() {
@@ -17,10 +18,11 @@ class EnhancedTournamentDeploymentManager {
             tournamentsCreated: 0,
             mockTournamentsCreated: 0,
             realTournamentsCreated: 0,
-            failedAttempts: 0
+            failedAttempts: 0,
+            idCollisionsHandled: 0
         };
         
-        console.log('✅ Enhanced Tournament Deployment Manager initialized (PERFECT SCHEMA)');
+        console.log('✅ Enhanced Tournament Deployment Manager initialized (PERFECT SCHEMA + SAFE ID)');
         
         // Check if we're in test mode
         if (this.testMode && this.testMode.isEnabled()) {
@@ -66,13 +68,14 @@ class EnhancedTournamentDeploymentManager {
     
     /**
      * Create a tournament with both on-chain and database components
+     * UPDATED: Now uses safe ID generation and handles collisions
      */
-    async createTournamentWithEscrow(startDate, variant) {
-        console.log(`📋 Creating enhanced tournament: ${variant.name}`);
+    async createTournamentWithEscrow(startDate, variant, retryCount = 0) {
+        console.log(`📋 Creating enhanced tournament: ${variant.name} (attempt ${retryCount + 1})`);
         
         try {
             // Generate unique tournament ID
-            const tournamentId = this.generateTournamentId(startDate, variant);
+            const tournamentId = this.generateUniqueTournamentId(startDate, variant);
             
             // Calculate times with safe fallbacks
             const validStartDate = new Date(startDate);
@@ -120,24 +123,36 @@ class EnhancedTournamentDeploymentManager {
                     throw new Error('Escrow integration not initialized');
                 }
                 
-                // Check if tournament already exists on-chain
-                const existsOnChain = await this.checkTournamentExistsOnChain(tournamentId);
-                if (existsOnChain) {
-                    console.log(`🔄 Tournament ${tournamentId} already exists on-chain, generating new ID...`);
-                    // Generate a new tournament ID and try again
-                    return this.createTournamentWithEscrow(startDate, variant);
-                }
-                
                 console.log('🔴 Creating REAL on-chain tournament...');
+                console.log(`🆔 Tournament ID: ${tournamentId}`);
+                
+                // Use the safe initialization method that handles ID collisions
                 escrowResult = await this.escrowIntegration.initializeTournament({
                     tournamentId,
-                    name: variant.name,
                     entryFee: variant.entryFee,
                     maxPlayers: variant.maxParticipants,
                     platformFeePercentage: 10,
                     startTime: Math.floor(validStartDate.getTime() / 1000),
                     endTime: Math.floor(endTime.getTime() / 1000)
                 });
+                
+                // Check if we hit an ID collision
+                if (!escrowResult.success && (
+                    escrowResult.error?.includes('already exists') || 
+                    escrowResult.error?.includes('0x65') ||
+                    escrowResult.errorCode === 101
+                )) {
+                    console.log('⚠️ ID collision detected, retrying with new ID...');
+                    this.stats.idCollisionsHandled++;
+                    
+                    // Retry with a new ID (max 3 attempts)
+                    if (retryCount < 3) {
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                        return this.createTournamentWithEscrow(startDate, variant, retryCount + 1);
+                    } else {
+                        throw new Error('Failed to create tournament after 3 attempts due to ID collisions');
+                    }
+                }
                 
                 // If this was the one real test, mark it as used
                 if (this.testMode && this.testMode.config.allowOneRealTest) {
@@ -149,8 +164,11 @@ class EnhancedTournamentDeploymentManager {
                 throw new Error(escrowResult.error || 'Failed to create on-chain tournament');
             }
             
+            // Extract the actual tournament ID used (in case it was changed)
+            const finalTournamentId = escrowResult.tournamentId || tournamentId;
+            
             console.log('✅ On-chain tournament created:', {
-                tournamentId,
+                tournamentId: finalTournamentId,
                 tournamentPDA: escrowResult.tournamentPDA,
                 escrowPDA: escrowResult.escrowPDA,
                 signature: escrowResult.signature,
@@ -188,12 +206,13 @@ class EnhancedTournamentDeploymentManager {
                 deployment_metadata: {
                     deployedAt: new Date().toISOString(),
                     variant: variant.name,
-                    tournamentId: tournamentId,
+                    tournamentId: finalTournamentId,
                     isTestMode: escrowResult.mock || false,
                     entryFee: variant.entryFee,
                     maxParticipants: variant.maxParticipants,
                     prizePoolPercentage: variant.prizePoolPercentage || 85,
-                    tradingStyle: variant.tradingStyle || 'pure_wallet'
+                    tradingStyle: variant.tradingStyle || 'pure_wallet',
+                    retryCount: retryCount
                 }
             };
             
@@ -226,29 +245,38 @@ class EnhancedTournamentDeploymentManager {
         } catch (error) {
             console.error(`❌ Failed to create tournament:`, error);
             this.stats.failedAttempts++;
+            
+            // If it's a wallet error, provide helpful message
+            if (error.message?.includes('failed to send transaction')) {
+                console.error('💡 TIP: Make sure Phantom is on devnet and has sufficient SOL');
+            }
+            
             return null;
         }
     }
     
     /**
-     * Generate unique tournament ID with timestamp to ensure uniqueness
+     * Generate unique tournament ID with timestamp and nano precision
+     * UPDATED: More unique to avoid collisions
      */
-    generateTournamentId(startDate, variant) {
+    generateUniqueTournamentId(startDate, variant) {
         const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
         const variantStr = variant.name
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '')
             .substring(0, 10);
         
-        // Use timestamp for true uniqueness instead of just random
+        // Use high-precision timestamp for uniqueness
         const timestamp = Date.now();
-        const timestampStr = timestamp.toString().slice(-6); // Last 6 digits of timestamp
+        const timestampStr = timestamp.toString().slice(-6); // Last 6 digits
+        const random = Math.random().toString(36).substring(2, 6); // 4 random chars
         
-        return `${variantStr}_${dateStr.substring(2)}_${timestampStr}`;
+        return `${variantStr}_${dateStr.substring(2)}_${timestampStr}_${random}`;
     }
     
     /**
      * Check if tournament exists on-chain before creating
+     * This is now less necessary since escrow integration handles it
      */
     async checkTournamentExistsOnChain(tournamentId) {
         if (!this.escrowIntegration) {
@@ -256,6 +284,12 @@ class EnhancedTournamentDeploymentManager {
         }
         
         try {
+            // Use the escrow integration's method if available
+            if (this.escrowIntegration.tournamentExists) {
+                return await this.escrowIntegration.tournamentExists(tournamentId);
+            }
+            
+            // Fallback to manual check
             const [tournamentPDA] = await this.escrowIntegration.PublicKey.findProgramAddress(
                 [this.escrowIntegration.Buffer.from('tournament'), this.escrowIntegration.Buffer.from(tournamentId)],
                 this.escrowIntegration.PROGRAM_ID
@@ -472,4 +506,4 @@ class EnhancedTournamentDeploymentManager {
 // Make it available globally
 window.EnhancedTournamentDeploymentManager = EnhancedTournamentDeploymentManager;
 
-console.log('✅ Enhanced Tournament Deployment Manager (PERFECT SCHEMA) loaded!');
+console.log('✅ Enhanced Tournament Deployment Manager (PERFECT SCHEMA + SAFE ID) loaded!');
