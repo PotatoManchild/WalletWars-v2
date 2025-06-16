@@ -260,19 +260,18 @@ class EnhancedTournamentDeploymentManager {
      * UPDATED: More unique to avoid collisions
      */
     generateUniqueTournamentId(startDate, variant) {
-        const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '');
-        const variantStr = variant.name
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, '')
-            .substring(0, 10);
-        
-        // Use high-precision timestamp for uniqueness
-        const timestamp = Date.now();
-        const timestampStr = timestamp.toString().slice(-6); // Last 6 digits
-        const random = Math.random().toString(36).substring(2, 6); // 4 random chars
-        
-        return `${variantStr}_${dateStr.substring(2)}_${timestampStr}_${random}`;
-    }
+    const dateStr = startDate.toISOString().split('T')[0].replace(/-/g, '').slice(-6); // Shorter date
+    const variantStr = variant.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .substring(0, 6); // Shorter variant name
+    
+    // Use shorter components
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const random = Math.random().toString(36).substring(2, 4); // 4 random chars
+    
+    return `${variantStr}_${dateStr}_${timestamp}_${random}`;
+}
     
     /**
      * Check if tournament exists on-chain before creating

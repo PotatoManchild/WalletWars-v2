@@ -227,12 +227,12 @@ class WalletWarsEscrowIntegration {
      * Generate a unique tournament ID with timestamp
      * UPDATED: More unique to avoid collisions
      */
-    generateUniqueTournamentId(prefix = 'tournament') {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substr(2, 9);
-        const nanoTime = process.hrtime ? process.hrtime()[1] : Math.floor(Math.random() * 1000000);
-        return `${prefix}_${timestamp}_${random}_${nanoTime}`;
-    }
+    generateUniqueTournamentId(prefix = 't') {
+    // Keep it under 32 bytes!
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits
+    const random = Math.random().toString(36).substr(2, 4); // 4 random chars
+    return `${prefix}_${timestamp}_${random}`; // Should be ~13-15 chars
+}
 
     /**
      * Initialize a new tournament on-chain with enhanced error handling
