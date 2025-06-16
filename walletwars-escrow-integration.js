@@ -3,6 +3,7 @@
 // Program ID: 12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y (DEPLOYED TO DEVNET!)
 // Deployment Date: June 16, 2025
 // Build ID: e0da0f2b-2d48-44e6-b25e-cd803c6b9f72
+// Last Updated: June 16, 2025 - Added enhanced error handling and unique tournament IDs
 
 // IMPORTANT: This uses the browser versions of the libraries loaded from CDN
 // Make sure Solana Web3.js and Anchor are loaded before this script
@@ -97,6 +98,7 @@ class WalletWarsEscrowIntegration {
         console.log('   Program ID:', this.PROGRAM_ID.toString());
         console.log('   Platform Wallet:', this.PLATFORM_WALLET.toString());
         console.log('   ✅ PROGRAM DEPLOYED TO DEVNET!');
+        console.log('   📅 Initialized:', new Date().toISOString());
         
         // Initialize connection
         this.connection = new this.Connection(
@@ -222,10 +224,25 @@ class WalletWarsEscrowIntegration {
     }
 
     /**
-     * Initialize a new tournament on-chain
-     * Works with or without Anchor
+     * Generate a unique tournament ID with timestamp
+     */
+    generateUniqueTournamentId(prefix = 'tournament') {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 9);
+        return `${prefix}_${timestamp}_${random}`;
+    }
+
+    /**
+     * Initialize a new tournament on-chain with enhanced error handling
+     * This is the MAIN method to use for tournament creation
      */
     async initializeTournament(tournamentData) {
+        // Auto-generate unique ID if not provided
+        if (!tournamentData.tournamentId) {
+            tournamentData.tournamentId = this.generateUniqueTournamentId();
+            console.log(`📝 Auto-generated tournament ID: ${tournamentData.tournamentId}`);
+        }
+
         const {
             tournamentId,
             entryFee,
@@ -237,11 +254,16 @@ class WalletWarsEscrowIntegration {
 
         try {
             console.log(`🎮 Initializing tournament ${tournamentId} on-chain...`);
+            console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
             
-            // First, verify the program account is valid
+            // Verify we're on devnet
+            const version = await this.connection.getVersion();
+            console.log('🌐 Network version:', version['solana-core']);
+            
+            // Verify the program account is valid
             const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
             if (!programInfo) {
-                throw new Error('Program account not found on chain!');
+                throw new Error('Program account not found on chain! Please check deployment.');
             }
             if (!programInfo.executable) {
                 throw new Error('Program account is not executable!');
@@ -271,59 +293,64 @@ class WalletWarsEscrowIntegration {
                 escrowBump
             });
             
-            // Check if ANY of these accounts already exist
-            console.log('🔍 Checking account states before initialization...');
-            
-            const tournamentAccount = await this.connection.getAccountInfo(tournamentPDA);
-            const escrowAccount = await this.connection.getAccountInfo(escrowPDA);
-            
-            console.log('Tournament account exists:', !!tournamentAccount);
-            if (tournamentAccount) {
-                console.log('  Owner:', tournamentAccount.owner.toString());
-                console.log('  Lamports:', tournamentAccount.lamports);
-                console.log('  Data length:', tournamentAccount.data.length);
-                console.log('  ⚠️ Tournament account already exists! This will likely fail.');
+            // Check if tournament already exists
+            console.log('🔍 Checking if tournament already exists...');
+            const existingAccount = await this.connection.getAccountInfo(tournamentPDA);
+            if (existingAccount) {
+                console.error('❌ Tournament account already exists!');
+                console.error('   Tournament ID:', tournamentId);
+                console.error('   PDA:', tournamentPDA.toString());
+                console.error('   Try using a different tournament ID or use generateUniqueTournamentId()');
+                return {
+                    success: false,
+                    error: 'Tournament ID already exists. Please use a unique ID.',
+                    existingId: tournamentId,
+                    suggestedId: this.generateUniqueTournamentId()
+                };
             }
             
-            console.log('Escrow account exists:', !!escrowAccount);
-            if (escrowAccount) {
-                console.log('  Owner:', escrowAccount.owner.toString());
-                console.log('  Lamports:', escrowAccount.lamports);
-                console.log('  Data length:', escrowAccount.data.length);
-            } else {
-                console.log('  ℹ️ Escrow account does not exist - this is expected for initialization');
-            }
+            console.log('✅ Tournament ID is available');
             
-            // Also log the authority (wallet) being used
-            console.log('Authority (wallet):', this.wallet.publicKey.toString());
-            console.log('System Program:', this.SystemProgram.programId.toString());
+            // Calculate rent for the tournament account
+            const TOURNAMENT_ACCOUNT_SIZE = 8 + 32 + 64 + 8 + 4 + 4 + 1 + 8 + 8 + 8 + 8 + 1 + 1 + 1 + 100; // ~350 bytes
+            const rentExemptAmount = await this.connection.getMinimumBalanceForRentExemption(TOURNAMENT_ACCOUNT_SIZE);
+            
+            console.log(`💰 Rent exempt amount needed: ${rentExemptAmount / this.LAMPORTS_PER_SOL} SOL`);
+            
+            // Check wallet balance
+            const walletBalance = await this.connection.getBalance(this.wallet.publicKey);
+            console.log(`👛 Wallet balance: ${walletBalance / this.LAMPORTS_PER_SOL} SOL`);
+            console.log(`   Wallet address: ${this.wallet.publicKey.toString()}`);
+            
+            if (walletBalance < rentExemptAmount + 5000) {
+                return {
+                    success: false,
+                    error: `Insufficient balance. Need at least ${(rentExemptAmount + 5000) / this.LAMPORTS_PER_SOL} SOL`,
+                    currentBalance: walletBalance / this.LAMPORTS_PER_SOL,
+                    requiredBalance: (rentExemptAmount + 5000) / this.LAMPORTS_PER_SOL
+                };
+            }
 
             // If Anchor is available, use it
             if (this.program && this.BN) {
-                // Debug what values we're passing
-                console.log('Debug - Values being passed to Anchor:', {
-                    tournamentId,
-                    entryFee: entryFee * this.LAMPORTS_PER_SOL,
-                    maxPlayers,
-                    platformFeePercentage,
-                    startTime,
-                    endTime
-                });
-
-                // FIX: Create BN instances properly without exposing BigInt
+                console.log('🚀 Using Anchor for transaction...');
+                
+                // Create BN instances properly
                 const entryFeeBN = new this.BN(Math.floor(entryFee * this.LAMPORTS_PER_SOL));
                 const startTimeBN = new this.BN(Math.floor(startTime));
                 const endTimeBN = new this.BN(Math.floor(endTime));
                 
-                // Debug BN creation (without logging the actual BN objects)
-                console.log('Debug - BNs created successfully');
-                console.log('Debug - BN values:', {
-                    entryFee: entryFeeBN.toString(),
-                    startTime: startTimeBN.toString(),
-                    endTime: endTimeBN.toString()
+                console.log('📊 Transaction parameters:', {
+                    tournamentId,
+                    entryFee: `${entryFee} SOL (${entryFeeBN.toString()} lamports)`,
+                    maxPlayers,
+                    platformFeePercentage: `${platformFeePercentage}%`,
+                    startTime: new Date(startTime * 1000).toISOString(),
+                    endTime: new Date(endTime * 1000).toISOString()
                 });
                 
                 try {
+                    // Build and send transaction
                     const tx = await this.program.methods
                         .initializeTournament(
                             tournamentId,
@@ -342,24 +369,69 @@ class WalletWarsEscrowIntegration {
                         .rpc();
 
                     console.log('✅ Tournament initialized with Anchor!');
+                    console.log(`📝 Transaction signature: ${tx}`);
+                    console.log(`🔗 View on explorer: https://devnet.explorer.solana.com/tx/${tx}`);
+                    console.log(`⏰ Completed at: ${new Date().toISOString()}`);
+                    
                     return {
                         success: true,
                         signature: tx,
                         tournamentPDA: tournamentPDA.toString(),
-                        escrowPDA: escrowPDA.toString()
+                        escrowPDA: escrowPDA.toString(),
+                        tournamentId,
+                        timestamp: new Date().toISOString()
                     };
                 } catch (anchorError) {
                     console.error('❌ Anchor transaction failed:', anchorError);
                     
-                    // Try to parse the error logs
+                    // Enhanced error parsing
+                    if (anchorError.error) {
+                        const errorCode = anchorError.error.errorCode?.code;
+                        const errorMsg = anchorError.error.errorMessage;
+                        
+                        console.error('Program error details:', {
+                            code: errorCode,
+                            message: errorMsg,
+                            number: anchorError.error.errorCode?.number
+                        });
+                        
+                        // Map error codes to user-friendly messages
+                        const errorMap = {
+                            'InvalidFeePercentage': 'Platform fee must be 20% or less',
+                            'InvalidEntryFee': 'Entry fee must be greater than 0',
+                            'InvalidMaxPlayers': 'Max players must be between 1 and 1000',
+                            'InvalidTimeRange': 'End time must be after start time'
+                        };
+                        
+                        return {
+                            success: false,
+                            error: errorMap[errorCode] || errorMsg || 'Transaction failed',
+                            errorCode,
+                            logs: anchorError.logs
+                        };
+                    }
+                    
+                    // Check for custom error code
+                    if (anchorError.message && anchorError.message.includes('custom program error')) {
+                        const match = anchorError.message.match(/0x([0-9a-f]+)/i);
+                        if (match) {
+                            const errorCode = parseInt(match[1], 16);
+                            console.error(`Custom error code: ${errorCode} (0x${match[1]})`);
+                            
+                            if (errorCode === 101) {
+                                return {
+                                    success: false,
+                                    error: 'Account already exists or insufficient lamports. Try a different tournament ID.',
+                                    errorCode: 101,
+                                    suggestedId: this.generateUniqueTournamentId()
+                                };
+                            }
+                        }
+                    }
+                    
                     if (anchorError.logs) {
                         console.error('Transaction logs:');
                         anchorError.logs.forEach(log => console.error('  ', log));
-                    }
-                    
-                    // If it's a serialization error, provide more context
-                    if (anchorError.message && anchorError.message.includes('serialize')) {
-                        console.error('Serialization issue detected. This might be due to BigInt handling.');
                     }
                     
                     throw anchorError;
@@ -393,6 +465,29 @@ class WalletWarsEscrowIntegration {
                 // Create and send transaction
                 const transaction = new this.Transaction().add(instruction);
                 
+                // Get recent blockhash
+                const { blockhash } = await this.connection.getLatestBlockhash();
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = this.wallet.publicKey;
+                
+                // Simulate first
+                console.log('🔍 Simulating transaction...');
+                const simulation = await this.connection.simulateTransaction(transaction);
+                if (simulation.value.err) {
+                    console.error('❌ Simulation failed:', simulation.value.err);
+                    if (simulation.value.logs) {
+                        console.error('Logs:', simulation.value.logs);
+                    }
+                    return {
+                        success: false,
+                        error: 'Transaction simulation failed',
+                        simulationError: simulation.value.err,
+                        logs: simulation.value.logs
+                    };
+                }
+                
+                console.log('✅ Simulation successful, sending transaction...');
+                
                 // Use wallet adapter to sign and send
                 const signature = await this.wallet.sendTransaction(transaction, this.connection);
                 
@@ -400,17 +495,37 @@ class WalletWarsEscrowIntegration {
                 await this.connection.confirmTransaction(signature, 'confirmed');
                 
                 console.log('✅ Tournament initialized with direct transaction!');
+                console.log(`⏰ Completed at: ${new Date().toISOString()}`);
+                
                 return {
                     success: true,
                     signature,
                     tournamentPDA: tournamentPDA.toString(),
-                    escrowPDA: escrowPDA.toString()
+                    escrowPDA: escrowPDA.toString(),
+                    tournamentId,
+                    timestamp: new Date().toISOString()
                 };
             }
 
         } catch (error) {
             console.error('❌ Failed to initialize tournament:', error);
-            return { success: false, error: error.message };
+            console.error('Stack trace:', error.stack);
+            
+            // Provide helpful error messages
+            if (error.message.includes('Transaction simulation failed')) {
+                return {
+                    success: false,
+                    error: 'Transaction simulation failed. This usually means the account already exists or there\'s insufficient SOL.',
+                    details: error.message,
+                    suggestedId: this.generateUniqueTournamentId()
+                };
+            }
+            
+            return { 
+                success: false, 
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
         }
     }
     
@@ -558,6 +673,7 @@ class WalletWarsEscrowIntegration {
 
         try {
             console.log(`📝 Registering player for tournament ${tournamentId}...`);
+            console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
 
             // Generate PDAs
             const [tournamentPDA] = await this.PublicKey.findProgramAddress(
@@ -575,6 +691,8 @@ class WalletWarsEscrowIntegration {
                 this.PROGRAM_ID
             );
 
+            console.log('📍 Registration PDA:', registrationPDA.toString());
+
             // If Anchor is available, use it
             if (this.program) {
                 // Get tournament data to show entry fee
@@ -584,6 +702,8 @@ class WalletWarsEscrowIntegration {
 
                 // Check wallet balance
                 const balance = await this.connection.getBalance(player);
+                console.log(`👛 Player balance: ${balance / this.LAMPORTS_PER_SOL} SOL`);
+                
                 if (balance < tournament.entryFee.toNumber()) {
                     throw new Error(`Insufficient balance. Need ${entryFee} SOL`);
                 }
@@ -603,12 +723,14 @@ class WalletWarsEscrowIntegration {
 
                 console.log('✅ Player registered successfully!');
                 console.log(`Entry fee of ${entryFee} SOL transferred to escrow`);
+                console.log(`⏰ Completed at: ${new Date().toISOString()}`);
 
                 return {
                     success: true,
                     signature: tx,
                     registrationPDA: registrationPDA.toString(),
-                    entryFeePaid: entryFee
+                    entryFeePaid: entryFee,
+                    timestamp: new Date().toISOString()
                 };
             } else {
                 // Fallback without Anchor
@@ -621,7 +743,11 @@ class WalletWarsEscrowIntegration {
 
         } catch (error) {
             console.error('❌ Registration failed:', error);
-            return { success: false, error: error.message };
+            return { 
+                success: false, 
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
         }
     }
 
@@ -630,6 +756,8 @@ class WalletWarsEscrowIntegration {
      */
     async getTournamentOnChain(tournamentId) {
         try {
+            console.log(`🔍 Fetching tournament ${tournamentId} from chain...`);
+            
             const [tournamentPDA] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(tournamentId)],
                 this.PROGRAM_ID
@@ -648,9 +776,15 @@ class WalletWarsEscrowIntegration {
                         currentPlayers: tournament.currentPlayers,
                         platformFeePercentage: tournament.platformFeePercentage,
                         totalPrizePool: tournament.totalPrizePool.toNumber() / this.LAMPORTS_PER_SOL,
+                        platformFeesCollected: tournament.platformFeesCollected.toNumber() / this.LAMPORTS_PER_SOL,
+                        startTime: new Date(tournament.startTime.toNumber() * 1000).toISOString(),
+                        endTime: new Date(tournament.endTime.toNumber() * 1000).toISOString(),
                         isActive: tournament.isActive,
-                        isFinalized: tournament.isFinalized
-                    }
+                        isFinalized: tournament.isFinalized,
+                        escrowBump: tournament.escrowBump
+                    },
+                    pda: tournamentPDA.toString(),
+                    timestamp: new Date().toISOString()
                 };
             } else {
                 return {
@@ -661,6 +795,16 @@ class WalletWarsEscrowIntegration {
 
         } catch (error) {
             console.error('❌ Failed to fetch tournament:', error);
+            
+            // Check if account doesn't exist
+            if (error.message.includes('Account does not exist')) {
+                return {
+                    success: false,
+                    error: 'Tournament not found on chain',
+                    tournamentId
+                };
+            }
+            
             return { success: false, error: error.message };
         }
     }
@@ -703,6 +847,7 @@ class WalletWarsEscrowIntegration {
     async testConnection() {
         try {
             console.log('🔍 Testing escrow connection...');
+            console.log(`⏰ Test started at: ${new Date().toISOString()}`);
             console.log('==============================');
             
             // Test 1: Basic components
@@ -731,7 +876,13 @@ class WalletWarsEscrowIntegration {
             console.log('   Program executable:', programInfo?.executable);
             console.log('   Program deployed to:', this.PROGRAM_ID.toString());
             
-            // Test 5: Buffer functionality
+            // Test 5: Wallet balance
+            if (this.wallet?.publicKey) {
+                const balance = await this.connection.getBalance(this.wallet.publicKey);
+                console.log(`   Wallet balance: ${balance / this.LAMPORTS_PER_SOL} SOL`);
+            }
+            
+            // Test 6: Buffer functionality
             console.log('\n4️⃣ Buffer Tests:');
             
             // Test Buffer.from with string
@@ -748,9 +899,9 @@ class WalletWarsEscrowIntegration {
             const concat = this.Buffer.concat([bufferFromString, bufferFromHex]);
             console.log('   ✅ Buffer.concat:', concat.length, 'bytes');
             
-            // Test 6: Generate test PDAs
+            // Test 7: Generate test PDAs
             console.log('\n5️⃣ PDA Generation:');
-            const testId = 'test_' + Date.now();
+            const testId = this.generateUniqueTournamentId('test');
             const [tournamentPDA, tournamentBump] = await this.PublicKey.findProgramAddress(
                 [this.Buffer.from('tournament'), this.Buffer.from(testId)],
                 this.PROGRAM_ID
@@ -763,7 +914,7 @@ class WalletWarsEscrowIntegration {
             console.log('   ✅ Escrow PDA:', escrowPDA.toString());
             console.log('   Bumps:', { tournament: tournamentBump, escrow: escrowBump });
             
-            // Test 7: BN functionality
+            // Test 8: BN functionality
             if (this.BN) {
                 console.log('\n6️⃣ BN (Big Number) Tests:');
                 const testBN = new this.BN(1000000);
@@ -773,7 +924,7 @@ class WalletWarsEscrowIntegration {
                 console.log('   ✅ BN to array:', bnArray.length, 'bytes');
             }
             
-            // Test 8: Can create instructions
+            // Test 9: Can create instructions
             console.log('\n7️⃣ Instruction Creation Test:');
             try {
                 const testInstruction = new this.TransactionInstruction({
@@ -798,6 +949,7 @@ class WalletWarsEscrowIntegration {
             console.log('   Can use direct transactions:', canUseDirect ? '✅ Yes' : '❌ No');
             console.log('   Recommended method:', canUseAnchor ? 'Anchor' : (canUseDirect ? 'Direct' : 'None available'));
             console.log('   🎉 PROGRAM IS DEPLOYED AND READY!');
+            console.log(`   ⏰ Test completed at: ${new Date().toISOString()}`);
             
             return { 
                 success: true, 
@@ -812,12 +964,17 @@ class WalletWarsEscrowIntegration {
                     pdaGeneration: true,
                     anchorAvailable: canUseAnchor,
                     directTransactionsAvailable: canUseDirect
-                }
+                },
+                timestamp: new Date().toISOString()
             };
             
         } catch (error) {
             console.error('❌ Test failed:', error);
-            return { success: false, error: error.message };
+            return { 
+                success: false, 
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
         }
     }
 
@@ -835,6 +992,7 @@ class WalletWarsEscrowIntegration {
         };
         
         console.log('📋 Dependency check:', deps);
+        console.log(`⏰ Checked at: ${new Date().toISOString()}`);
         return deps;
     }
     
@@ -843,6 +1001,7 @@ class WalletWarsEscrowIntegration {
      */
     static async waitForAnchorAndCreate(wallet, maxAttempts = 10, delay = 500) {
         console.log('⏳ Waiting for Anchor to load...');
+        console.log(`⏰ Started at: ${new Date().toISOString()}`);
         
         for (let i = 0; i < maxAttempts; i++) {
             // Check if Anchor is available
@@ -856,6 +1015,7 @@ class WalletWarsEscrowIntegration {
         }
         
         console.warn('⚠️ Anchor not loaded after waiting, creating escrow with fallback mode');
+        console.log(`⏰ Gave up at: ${new Date().toISOString()}`);
         return new WalletWarsEscrowIntegration(wallet);
     }
 }
@@ -868,6 +1028,7 @@ console.log('📋 Available at: window.WalletWarsEscrowIntegration');
 console.log('🎮 Program ID:', '12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y');
 console.log('💰 Platform Wallet:', '5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
 console.log('🚀 PROGRAM DEPLOYED TO DEVNET!');
+console.log(`⏰ Script loaded at: ${new Date().toISOString()}`);
 
 // Auto-test if Buffer is available
 if (typeof Buffer !== 'undefined' || (typeof window !== 'undefined' && window.Buffer)) {
