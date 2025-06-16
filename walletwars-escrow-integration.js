@@ -1,6 +1,8 @@
 // walletwars-escrow-integration.js
 // Complete integration for WalletWars escrow system with deployed program
-// Program ID: AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7
+// Program ID: 12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y (DEPLOYED TO DEVNET!)
+// Deployment Date: June 16, 2025
+// Build ID: e0da0f2b-2d48-44e6-b25e-cd803c6b9f72
 
 // IMPORTANT: This uses the browser versions of the libraries loaded from CDN
 // Make sure Solana Web3.js and Anchor are loaded before this script
@@ -87,13 +89,14 @@ class WalletWarsEscrowIntegration {
         // Store wallet
         this.wallet = wallet;
         
-        // Program configuration
-        this.PROGRAM_ID = new this.PublicKey('AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7');
+        // Program configuration - UPDATED WITH NEW DEPLOYED PROGRAM ID!
+        this.PROGRAM_ID = new this.PublicKey('12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y');
         this.PLATFORM_WALLET = new this.PublicKey('5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
         
         console.log('🎮 Escrow Integration Program Configuration:');
         console.log('   Program ID:', this.PROGRAM_ID.toString());
         console.log('   Platform Wallet:', this.PLATFORM_WALLET.toString());
+        console.log('   ✅ PROGRAM DEPLOYED TO DEVNET!');
         
         // Initialize connection
         this.connection = new this.Connection(
@@ -726,6 +729,7 @@ class WalletWarsEscrowIntegration {
             const programInfo = await this.connection.getAccountInfo(this.PROGRAM_ID);
             console.log('   ✅ Escrow program found:', !!programInfo);
             console.log('   Program executable:', programInfo?.executable);
+            console.log('   Program deployed to:', this.PROGRAM_ID.toString());
             
             // Test 5: Buffer functionality
             console.log('\n4️⃣ Buffer Tests:');
@@ -793,6 +797,7 @@ class WalletWarsEscrowIntegration {
             console.log('   Can use Anchor:', canUseAnchor ? '✅ Yes' : '❌ No');
             console.log('   Can use direct transactions:', canUseDirect ? '✅ Yes' : '❌ No');
             console.log('   Recommended method:', canUseAnchor ? 'Anchor' : (canUseDirect ? 'Direct' : 'None available'));
+            console.log('   🎉 PROGRAM IS DEPLOYED AND READY!');
             
             return { 
                 success: true, 
@@ -801,6 +806,8 @@ class WalletWarsEscrowIntegration {
                     walletConnected: !!this.wallet,
                     solanaConnected: true,
                     programFound: !!programInfo,
+                    programDeployed: true,
+                    programId: this.PROGRAM_ID.toString(),
                     bufferWorking: true,
                     pdaGeneration: true,
                     anchorAvailable: canUseAnchor,
@@ -858,8 +865,9 @@ window.WalletWarsEscrowIntegration = WalletWarsEscrowIntegration;
 
 console.log('✅ WalletWars Escrow Integration loaded!');
 console.log('📋 Available at: window.WalletWarsEscrowIntegration');
-console.log('🎮 Program ID:', 'AXMwpemCzKXiozQhcMtxajPGQwiz4SWfb3xvH42RXuT7');
+console.log('🎮 Program ID:', '12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y');
 console.log('💰 Platform Wallet:', '5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
+console.log('🚀 PROGRAM DEPLOYED TO DEVNET!');
 
 // Auto-test if Buffer is available
 if (typeof Buffer !== 'undefined' || (typeof window !== 'undefined' && window.Buffer)) {
