@@ -245,31 +245,25 @@ class WalletWarsEscrowIntegration {
      * Caches them for performance
      */
     async getInstructionDiscriminators() {
-        if (this._discriminators) {
-            return this._discriminators;
-        }
-
-        console.log('🔐 Calculating instruction discriminators...');
-        
-        this._discriminators = {
-            initializeTournament: await this.calculateDiscriminator('initialize_tournament'),
-            registerPlayer: await this.calculateDiscriminator('register_player'),
-            finalizeTournament: await this.calculateDiscriminator('finalize_tournament'),
-            distributePrize: await this.calculateDiscriminator('distribute_prize'),
-            collectPlatformFees: await this.calculateDiscriminator('collect_platform_fees'),
-            cancelTournament: await this.calculateDiscriminator('cancel_tournament'),
-            refundPlayer: await this.calculateDiscriminator('refund_player')
-        };
-
-        // Log discriminators for debugging
-        console.log('📊 Calculated discriminators:');
-        for (const [name, disc] of Object.entries(this._discriminators)) {
-            const hex = Array.from(disc).map(b => b.toString(16).padStart(2, '0')).join(' ');
-            console.log(`   ${name}: ${hex}`);
-        }
-
+    if (this._discriminators) {
         return this._discriminators;
     }
+
+    console.log('🔐 Using hardcoded discriminators...');
+    
+    // Use the KNOWN WORKING discriminators
+    this._discriminators = {
+        initializeTournament: new Uint8Array([75, 138, 86, 80, 49, 127, 155, 186]),
+        registerPlayer: await this.calculateDiscriminator('register_player'),
+        finalizeTournament: await this.calculateDiscriminator('finalize_tournament'),
+        distributePrize: await this.calculateDiscriminator('distribute_prize'),
+        collectPlatformFees: await this.calculateDiscriminator('collect_platform_fees'),
+        cancelTournament: await this.calculateDiscriminator('cancel_tournament'),
+        refundPlayer: await this.calculateDiscriminator('refund_player')
+    };
+
+    return this._discriminators;
+}
 
     /**
      * Generate a unique tournament ID with timestamp
