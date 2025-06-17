@@ -814,23 +814,27 @@ class WalletWarsEscrowIntegration {
                     // Get the transaction
                     const tx = await txBuilder.transaction();
                     
-                    // Add compute budget instructions if available
-                    if (ComputeBudgetProgram) {
-                        // Request more compute units
-                        const computeIx = ComputeBudgetProgram.setComputeUnitLimit({
-                            units: 300_000 // Increase from default 200k
-                        });
-                        
-                        // Set a higher priority fee to ensure transaction goes through
-                        const priorityIx = ComputeBudgetProgram.setComputeUnitPrice({
-                            microLamports: 1000 // Small priority fee
-                        });
-                        
-                        // Add these instructions BEFORE the main instruction
-                        tx.instructions = [computeIx, priorityIx, ...tx.instructions];
-                        
-                        console.log('✅ Added compute budget instructions (300k units, 1000 microLamports priority)');
-                    }
+                 // Find this section and comment it out:
+if (ComputeBudgetProgram) {
+    console.log('⚠️ Skipping compute budget due to Blob.encode error');
+    
+    /* COMMENT OUT THIS ENTIRE BLOCK
+    // Request more compute units
+    const computeIx = ComputeBudgetProgram.setComputeUnitLimit({
+        units: 300_000
+    });
+    
+    // Set a higher priority fee
+    const priorityIx = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: 1000
+    });
+    
+    // Add these instructions BEFORE the main instruction
+    tx.instructions = [computeIx, priorityIx, ...tx.instructions];
+    
+    console.log('✅ Added compute budget instructions');
+    */
+}
                     
                     // Get fresh blockhash
                     const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash();
