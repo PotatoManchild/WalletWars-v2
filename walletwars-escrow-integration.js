@@ -666,13 +666,58 @@ class WalletWarsEscrowIntegration {
             // Send transaction - handle different wallet implementations
             let signature;
             
+            // Debug transaction before sending
+            console.log('📊 Transaction details before sending:');
+            console.log('   Fee payer:', transaction.feePayer?.toString());
+            console.log('   Recent blockhash:', transaction.recentBlockhash);
+            console.log('   Instructions:', transaction.instructions.length);
+            console.log('   Signatures:', transaction.signatures.length);
+            
+            // Verify transaction is valid
+            try {
+                // Ensure all required fields are set
+                if (!transaction.feePayer) {
+                    transaction.feePayer = this.wallet.publicKey;
+                }
+                
+                // Get a fresh blockhash if needed
+                if (!transaction.recentBlockhash) {
+                    const { blockhash } = await this.connection.getLatestBlockhash();
+                    transaction.recentBlockhash = blockhash;
+                }
+                
+                // Serialize to check if transaction is valid
+                const serialized = transaction.serialize({
+                    requireAllSignatures: false,
+                    verifySignatures: false
+                });
+                console.log('   Serialized size:', serialized.length, 'bytes');
+                
+            } catch (e) {
+                console.error('❌ Transaction validation error:', e);
+                throw new Error(`Invalid transaction: ${e.message}`);
+            }
+            
             // Check if wallet has sendTransaction method (Phantom, Solflare, etc.)
             if (this.wallet.sendTransaction && typeof this.wallet.sendTransaction === 'function') {
-                signature = await this.wallet.sendTransaction(transaction, this.connection, {
-                    skipPreflight: true, // Skip preflight to avoid simulation errors
-                    preflightCommitment: 'confirmed',
-                    maxRetries: 3
-                });
+                try {
+                    console.log('🚀 Using wallet.sendTransaction()...');
+                    signature = await this.wallet.sendTransaction(transaction, this.connection, {
+                        skipPreflight: true, // Skip preflight to avoid simulation errors
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    });
+                } catch (walletError) {
+                    console.error('❌ Wallet sendTransaction failed:', walletError);
+                    
+                    // If it's a Phantom-specific error, try without options
+                    if (walletError.message?.includes('Unexpected error')) {
+                        console.log('🔄 Retrying with minimal options...');
+                        signature = await this.wallet.sendTransaction(transaction, this.connection);
+                    } else {
+                        throw walletError;
+                    }
+                }
             } 
             // Check if wallet has signAndSendTransaction (some wallets use this)
             else if (this.wallet.signAndSendTransaction && typeof this.wallet.signAndSendTransaction === 'function') {
@@ -1023,6 +1068,34 @@ class WalletWarsEscrowIntegration {
         } catch (error) {
             console.error('Failed to estimate costs:', error);
             return null;
+        }
+    }
+
+    /**
+     * Alternative method to send transaction with minimal complexity
+     * Used when standard methods fail
+     */
+    async sendTransactionSimple(transaction) {
+        console.log('🔧 Using simplified transaction sending...');
+        
+        try {
+            // Ensure transaction has all required fields
+            const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = this.wallet.publicKey;
+            
+            // Try the simplest sendTransaction call possible
+            if (this.wallet.sendTransaction) {
+                return await this.wallet.sendTransaction(transaction, this.connection);
+            }
+            
+            // Fallback to manual sign and send
+            const signed = await this.wallet.signTransaction(transaction);
+            return await this.connection.sendRawTransaction(signed.serialize());
+            
+        } catch (error) {
+            console.error('❌ Simple send failed:', error);
+            throw error;
         }
     }
 
