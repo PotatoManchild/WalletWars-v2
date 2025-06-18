@@ -93,6 +93,14 @@ class WalletWarsEscrowIntegration {
         // Store wallet
         this.wallet = wallet;
         
+        // Check wallet compatibility
+        if (wallet) {
+            const compatibility = this.checkWalletCompatibility();
+            if (!compatibility.compatible) {
+                console.error('⚠️ Wallet may not be fully compatible for transaction sending');
+            }
+        }
+        
         // Program configuration - UPDATED WITH NEW DEPLOYED PROGRAM ID!
         this.PROGRAM_ID = new this.PublicKey('12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y');
         this.PLATFORM_WALLET = new this.PublicKey('5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
@@ -655,12 +663,50 @@ class WalletWarsEscrowIntegration {
             
             console.log('📤 Sending transaction with manual encoding...');
             
-            // Send transaction
-            const signature = await this.wallet.sendTransaction(transaction, this.connection, {
-                skipPreflight: true, // Skip preflight to avoid simulation errors
-                preflightCommitment: 'confirmed',
-                maxRetries: 3
-            });
+            // Send transaction - handle different wallet implementations
+            let signature;
+            
+            // Check if wallet has sendTransaction method (Phantom, Solflare, etc.)
+            if (this.wallet.sendTransaction && typeof this.wallet.sendTransaction === 'function') {
+                signature = await this.wallet.sendTransaction(transaction, this.connection, {
+                    skipPreflight: true, // Skip preflight to avoid simulation errors
+                    preflightCommitment: 'confirmed',
+                    maxRetries: 3
+                });
+            } 
+            // Check if wallet has signAndSendTransaction (some wallets use this)
+            else if (this.wallet.signAndSendTransaction && typeof this.wallet.signAndSendTransaction === 'function') {
+                const result = await this.wallet.signAndSendTransaction(transaction);
+                signature = result.signature || result;
+            }
+            // Fallback: sign transaction and send it manually
+            else if (this.wallet.signTransaction && typeof this.wallet.signTransaction === 'function') {
+                console.log('⚠️ Wallet does not have sendTransaction, using signTransaction + send manually');
+                
+                // Sign the transaction
+                const signedTransaction = await this.wallet.signTransaction(transaction);
+                
+                // Send the signed transaction
+                signature = await this.connection.sendRawTransaction(
+                    signedTransaction.serialize(),
+                    {
+                        skipPreflight: true,
+                        preflightCommitment: 'confirmed',
+                        maxRetries: 3
+                    }
+                );
+            }
+            // If using Anchor provider's wallet
+            else if (this.provider && this.provider.sendAndConfirm) {
+                console.log('⚠️ Using Anchor provider sendAndConfirm method');
+                signature = await this.provider.sendAndConfirm(transaction, [], {
+                    skipPreflight: true,
+                    commitment: 'confirmed'
+                });
+            }
+            else {
+                throw new Error('Wallet does not support transaction sending. Please ensure you have a compatible wallet connected.');
+            }
             
             console.log('⏳ Waiting for confirmation...');
             
@@ -692,6 +738,18 @@ class WalletWarsEscrowIntegration {
         } catch (error) {
             console.error('❌ Failed to initialize tournament:', error);
             console.error('Stack trace:', error.stack);
+            
+            // Check if it's a wallet compatibility issue
+            if (error.message?.includes('is not a function')) {
+                const compatibility = this.checkWalletCompatibility();
+                return {
+                    success: false,
+                    error: 'Wallet compatibility issue: ' + error.message,
+                    walletMethods: compatibility.methods,
+                    suggestion: 'Please ensure you are using a compatible Solana wallet (Phantom, Solflare, etc.) and that it is properly connected.',
+                    details: 'The wallet object does not have the required methods for sending transactions.'
+                };
+            }
             
             // Enhanced error messages for common issues
             if (error.message?.includes('Transaction reverted during simulation')) {
@@ -1008,6 +1066,79 @@ class WalletWarsEscrowIntegration {
         }
         
         return true;
+    }
+
+    /**
+     * Check wallet compatibility and available methods
+     */
+    checkWalletCompatibility() {
+        console.log('🔍 Checking wallet compatibility...');
+        
+        if (!this.wallet) {
+            console.error('❌ No wallet object provided');
+            return {
+                compatible: false,
+                error: 'No wallet object'
+            };
+        }
+        
+        const methods = {
+            publicKey: !!this.wallet.publicKey,
+            sendTransaction: typeof this.wallet.sendTransaction === 'function',
+            signTransaction: typeof this.wallet.signTransaction === 'function',
+            signAndSendTransaction: typeof this.wallet.signAndSendTransaction === 'function',
+            signAllTransactions: typeof this.wallet.signAllTransactions === 'function',
+            connect: typeof this.wallet.connect === 'function',
+            disconnect: typeof this.wallet.disconnect === 'function'
+        };
+        
+        console.log('📋 Wallet methods available:', methods);
+        
+        // Check if it's an Anchor provider wallet
+        const isAnchorWallet = !!(this.provider && this.provider.sendAndConfirm);
+        console.log('   Is Anchor provider wallet:', isAnchorWallet);
+        
+        // Determine compatibility
+        const canSendTransactions = methods.sendTransaction || 
+                                   methods.signAndSendTransaction || 
+                                   methods.signTransaction ||
+                                   isAnchorWallet;
+        
+        console.log('   Can send transactions:', canSendTransactions ? '✅ Yes' : '❌ No');
+        
+        if (!canSendTransactions) {
+            console.error('❌ Wallet is not compatible for sending transactions');
+            console.log('   Required: sendTransaction, signAndSendTransaction, or signTransaction method');
+        }
+        
+        return {
+            compatible: canSendTransactions,
+            methods,
+            isAnchorWallet,
+            walletType: this.detectWalletType()
+        };
+    }
+    
+    /**
+     * Detect wallet type based on available properties
+     */
+    detectWalletType() {
+        if (!this.wallet) return 'unknown';
+        
+        // Check for common wallet identifiers
+        if (this.wallet.isPhantom) return 'Phantom';
+        if (this.wallet.isSolflare) return 'Solflare';
+        if (this.wallet.isBackpack) return 'Backpack';
+        if (this.wallet.isBrave) return 'Brave';
+        if (this.wallet.isCoin98) return 'Coin98';
+        if (this.wallet.isMathWallet) return 'MathWallet';
+        if (this.wallet.isSollet) return 'Sollet';
+        if (this.wallet.isExodus) return 'Exodus';
+        
+        // Check for wallet adapter
+        if (this.wallet.adapter) return `WalletAdapter(${this.wallet.adapter.name || 'unknown'})`;
+        
+        return 'unknown';
     }
 
     /**
