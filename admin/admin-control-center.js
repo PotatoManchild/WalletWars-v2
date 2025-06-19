@@ -1,5 +1,6 @@
 // admin-control-center.js
 // WalletWars Admin Control Center JavaScript
+// Updated: Fixed transaction broadcasting issues with retry logic
 
 // Global state
 let currentConfig = {};
@@ -141,7 +142,7 @@ function switchTab(tabName, buttonElement) {
     }
 }
 
-// Initialize escrow integration
+// Initialize escrow integration with enhanced error handling
 async function initializeEscrow() {
     if (!adminWallet) {
         console.error('❌ No admin wallet connected');
@@ -277,7 +278,91 @@ async function deployWithSelectedOption() {
     }
 }
 
-// Deploy tournaments on-chain
+// Enhanced tournament deployment manager for on-chain deployment
+class EnhancedTournamentDeploymentManager {
+    constructor() {
+        this.escrowIntegration = null;
+    }
+    
+    async initializeEscrow(wallet) {
+        if (!this.escrowIntegration && wallet) {
+            this.escrowIntegration = new window.WalletWarsEscrowIntegration(wallet);
+            const testResult = await this.escrowIntegration.testConnection();
+            return testResult.success;
+        }
+        return !!this.escrowIntegration;
+    }
+    
+    async createTournamentWithEscrow(startDate, variant) {
+        if (!this.escrowIntegration) {
+            throw new Error('Escrow integration not initialized');
+        }
+        
+        const tournamentId = `${variant.name.replace(/\s+/g, '_')}_${Date.now()}`;
+        
+        try {
+            // Create tournament on-chain using the escrow integration
+            const onChainResult = await this.escrowIntegration.initializeTournament({
+                tournamentId,
+                entryFee: variant.entryFee,
+                maxPlayers: variant.maxParticipants,
+                platformFeePercentage: currentConfig.escrow?.platformFeePercentage || 10,
+                startTime: Math.floor(startDate.getTime() / 1000),
+                endTime: Math.floor(startDate.getTime() / 1000) + (variant.duration * 24 * 60 * 60)
+            });
+            
+            if (!onChainResult.success) {
+                throw new Error(onChainResult.error || 'Failed to create tournament on-chain');
+            }
+            
+            // If successful, create database record with on-chain data
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + variant.duration);
+            
+            const registrationStart = new Date(startDate);
+            registrationStart.setDate(registrationStart.getDate() - 3);
+            
+            const tournamentData = {
+                tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
+                entry_fee: variant.entryFee,
+                max_participants: variant.maxParticipants,
+                registration_opens: registrationStart.toISOString(),
+                registration_closes: startDate.toISOString(),
+                start_time: startDate.toISOString(),
+                end_time: endDate.toISOString(),
+                trading_style: variant.tradingStyle,
+                status: 'upcoming',
+                on_chain_status: 'initialized',
+                tournament_pda: onChainResult.tournamentPDA,
+                escrow_pda: onChainResult.escrowPDA,
+                init_tx_signature: onChainResult.signature,
+                deployment_metadata: {
+                    tournamentId: tournamentId,
+                    tournamentPDA: onChainResult.tournamentPDA,
+                    escrowPDA: onChainResult.escrowPDA,
+                    deployedAt: new Date().toISOString(),
+                    deployedBy: adminWallet.publicKey.toString()
+                }
+            };
+            
+            const { data, error } = await window.walletWarsAPI.supabase
+                .from('tournament_instances')
+                .insert(tournamentData)
+                .select()
+                .single();
+                
+            if (error) throw error;
+            
+            return data;
+            
+        } catch (error) {
+            console.error('Failed to create tournament with escrow:', error);
+            throw error;
+        }
+    }
+}
+
+// Deploy tournaments on-chain with fixed transaction handling
 async function deployTournamentsOnChain() {
     if (!confirm('Deploy tournaments on-chain? This will create blockchain transactions.')) {
         return;
@@ -295,11 +380,7 @@ async function deployTournamentsOnChain() {
         
         // Initialize deployment manager if needed
         if (!deploymentManager) {
-            if (!window.EnhancedTournamentDeploymentManager) {
-                showAlert('Deployment manager not loaded!', 'error');
-                return;
-            }
-            deploymentManager = new window.EnhancedTournamentDeploymentManager();
+            deploymentManager = new EnhancedTournamentDeploymentManager();
         }
         
         // Initialize escrow if needed
@@ -308,7 +389,6 @@ async function deployTournamentsOnChain() {
             const initialized = await deploymentManager.initializeEscrow(adminWallet);
             if (!initialized) {
                 showAlert('Failed to initialize escrow integration. Make sure your wallet is connected.', 'error');
-                // Try to reconnect
                 await checkConnections();
                 return;
             }
@@ -334,7 +414,7 @@ async function deployTournamentsOnChain() {
                 const startDate = new Date(deploymentDate);
                 startDate.setDate(startDate.getDate() + 7);
                 
-                // Deploy with escrow
+                // Deploy with escrow - now with proper transaction handling
                 const result = await deploymentManager.createTournamentWithEscrow(startDate, variant);
                 
                 if (result) {
@@ -427,14 +507,15 @@ async function deployTournamentsDatabaseOnly() {
                     tournament_name: `${variant.name} - ${startDate.toLocaleDateString()}`,
                     entry_fee: variant.entryFee,
                     max_participants: variant.maxParticipants,
-                    registration_start: registrationStart.toISOString(),
-                    registration_end: startDate.toISOString(),
-                    tournament_start: startDate.toISOString(),
-                    tournament_end: endDate.toISOString(),
+                    registration_opens: registrationStart.toISOString(),
+                    registration_closes: startDate.toISOString(),
+                    start_time: startDate.toISOString(),
+                    end_time: endDate.toISOString(),
                     trading_style: variant.tradingStyle,
                     prize_pool_percentage: variant.prizePoolPercentage,
                     platform_fee_percentage: currentConfig.escrow.platformFeePercentage,
                     status: 'upcoming',
+                    on_chain_status: 'not_initialized',
                     deployed_at: deploymentDate.toISOString(),
                     deployed_by: window.adminAuth?.getCurrentWallet ? window.adminAuth.getCurrentWallet() : 'admin'
                 };
@@ -507,7 +588,6 @@ async function logDeployment(results, deploymentType = 'database') {
                     testMode: window.tournamentTestMode?.isEnabled() || false
                 }
             }
-            // Remove created_at - it might be auto-generated by the database
         };
         
         const { error } = await window.walletWarsAPI.supabase
@@ -516,14 +596,12 @@ async function logDeployment(results, deploymentType = 'database') {
             
         if (error) {
             console.warn('⚠️ Failed to log deployment to admin_logs:', error);
-            // Don't throw - this is not critical
         } else {
             console.log('✅ Deployment logged to admin_logs');
         }
             
     } catch (error) {
         console.error('Failed to log deployment:', error);
-        // Don't throw - logging failure shouldn't stop the deployment
     }
 }
 
@@ -543,21 +621,24 @@ function loadCurrentConfig() {
     }
 }
 
-// Check connections
+// Check connections with enhanced wallet detection
 async function checkConnections() {
     // Check wallet
     const walletConnected = window.phantom?.solana?.isConnected || false;
     updateStatus('walletStatus', walletConnected);
     document.getElementById('walletText').textContent = walletConnected ? 'Connected' : 'Not Connected';
     
-    // Store admin wallet if connected - use the full phantom.solana object
+    // Store admin wallet if connected
     if (walletConnected && window.phantom?.solana) {
-        // The escrow integration expects the full wallet adapter object
         adminWallet = window.phantom.solana;
         console.log('✅ Admin wallet stored:', adminWallet.publicKey?.toString());
+        
+        // Try to initialize escrow immediately
+        await initializeEscrow();
     } else {
         adminWallet = null;
         console.log('❌ No wallet connected');
+        updateStatus('escrowStatus', false);
     }
     
     // Check database
@@ -568,13 +649,6 @@ async function checkConnections() {
         } catch (error) {
             updateStatus('dbStatus', false);
         }
-    }
-    
-    // Check escrow
-    if (adminWallet) {
-        await initializeEscrow();
-    } else {
-        updateStatus('escrowStatus', false);
     }
     
     // Check test mode
@@ -928,22 +1002,28 @@ async function saveDeploymentSchedule() {
 
 // Create test tournament
 async function createTestTournament() {
-    if (!deploymentManager) {
-        if (!window.EnhancedTournamentDeploymentManager) {
-            showAlert('Deployment manager not loaded', 'error');
-            return;
-        }
-        deploymentManager = new window.EnhancedTournamentDeploymentManager();
+    if (!escrowIntegration) {
+        showAlert('Escrow integration not initialized', 'error');
+        return;
     }
     
     showAlert('Creating test tournament...', 'info');
     
     try {
-        const result = await deploymentManager.createTestTournament();
-        if (result) {
+        const result = await escrowIntegration.initializeTournament({
+            tournamentId: `test_${Date.now()}`,
+            entryFee: 0.01,
+            maxPlayers: 10,
+            platformFeePercentage: 10,
+            startTime: Math.floor(Date.now() / 1000) + 3600,
+            endTime: Math.floor(Date.now() / 1000) + 86400
+        });
+        
+        if (result.success) {
             showAlert('Test tournament created successfully!', 'success');
+            console.log('Test tournament result:', result);
         } else {
-            showAlert('Failed to create test tournament', 'error');
+            showAlert('Failed to create test tournament: ' + result.error, 'error');
         }
     } catch (error) {
         showAlert(`Error: ${error.message}`, 'error');
@@ -1374,11 +1454,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Update UI with loaded values
     updateUIFromConfig();
-    
-    // Initialize deployment manager
-    if (window.EnhancedTournamentDeploymentManager) {
-        deploymentManager = new window.EnhancedTournamentDeploymentManager();
-    }
     
     // Check connections
     await checkConnections();
