@@ -3,13 +3,11 @@
 // Program ID: 12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y (DEPLOYED TO DEVNET!)
 // Deployment Date: June 16, 2025
 // Build ID: e0da0f2b-2d48-44e6-b25e-cd803c6b9f72
-// Last Updated: June 19, 2025 - FIXED: Transaction broadcast issues resolved
+// Last Updated: June 19, 2025 - FIXED: Transaction broadcast issues with retry logic
 // 
-// CRITICAL FIXES APPLIED:
-// 1. Anchor's .rpc() and .instruction() methods produce invalid instruction data - Using manual encoding
-// 2. Transactions were only simulating, not broadcasting - Added proper retry logic
-// 3. Wallet disconnection errors - Added reconnection handling
-// 4. Blockhash expiration - Added refresh on retry
+// CRITICAL FIX: Anchor's .rpc() and .instruction() methods produce invalid instruction data
+// with zero discriminators. Now using manual instruction encoding for all transactions.
+// ADDITIONAL FIX: Added proper transaction sending with retry logic to handle wallet disconnections
 
 // IMPORTANT: This uses the browser versions of the libraries loaded from CDN
 // Make sure Solana Web3.js and Anchor are loaded before this script
@@ -112,7 +110,7 @@ class WalletWarsEscrowIntegration {
         console.log('   Program ID:', this.PROGRAM_ID.toString());
         console.log('   Platform Wallet:', this.PLATFORM_WALLET.toString());
         console.log('   ✅ PROGRAM DEPLOYED TO DEVNET!');
-        console.log('   🔧 FIXED: Transaction broadcast issues resolved');
+        console.log('   🔧 FIXED: Using manual instruction building with retry logic');
         console.log('   📅 Initialized:', new Date().toISOString());
         
         // Initialize connection
@@ -730,7 +728,7 @@ class WalletWarsEscrowIntegration {
     /**
      * Initialize tournament with compute budget and better error handling
      * This method adds compute budget instructions to prevent transaction failures
-     * FIXED: Now uses manual instruction building and proper transaction sending
+     * FIXED: Now uses manual instruction building and retry logic
      */
     async initializeTournamentWithComputeBudget(tournamentData) {
         // Auto-generate unique ID if not provided
@@ -799,6 +797,9 @@ class WalletWarsEscrowIntegration {
             // ALWAYS use manual transaction building - Anchor .rpc() produces invalid data
             console.log('🔧 Building transaction manually (Anchor .rpc() produces zero discriminator)...');
             
+            // Create transaction
+            const transaction = new this.Transaction();
+            
             // Create the initialize tournament instruction with manual encoding
             const instructionData = await this.encodeInitializeTournamentData({
                 tournamentId,
@@ -820,11 +821,7 @@ class WalletWarsEscrowIntegration {
                 data: instructionData
             });
             
-            // Create transaction
-            const transaction = new this.Transaction();
             transaction.add(initInstruction);
-            
-            console.log('📤 Sending transaction with retry logic...');
             
             // Send with retry logic
             try {
@@ -1170,6 +1167,34 @@ class WalletWarsEscrowIntegration {
     }
 
     /**
+     * Alternative method to send transaction with minimal complexity
+     * Used when standard methods fail
+     */
+    async sendTransactionSimple(transaction) {
+        console.log('🔧 Using simplified transaction sending...');
+        
+        try {
+            // Ensure transaction has all required fields
+            const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+            transaction.recentBlockhash = blockhash;
+            transaction.feePayer = this.wallet.publicKey;
+            
+            // Try the simplest sendTransaction call possible
+            if (this.wallet.sendTransaction) {
+                return await this.wallet.sendTransaction(transaction, this.connection);
+            }
+            
+            // Fallback to manual sign and send
+            const signed = await this.wallet.signTransaction(transaction);
+            return await this.connection.sendRawTransaction(signed.serialize());
+            
+        } catch (error) {
+            console.error('❌ Simple send failed:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Test discriminator calculation
      * Useful for debugging and verification
      */
@@ -1449,8 +1474,15 @@ class WalletWarsEscrowIntegration {
             console.log('   Hex:', hardcodedDiscriminator.map(b => b.toString(16).padStart(2, '0')).join(' '));
             console.log('   ⚠️ NOTE: Anchor .rpc() produces zero discriminator, using manual encoding');
             
-            // Test 11: Wallet debugging
-            await this.debugWalletConnection();
+            // Test 11: Wallet compatibility
+            console.log('\n9️⃣ Wallet Compatibility:');
+            const compatibility = this.checkWalletCompatibility();
+            console.log('   Compatible:', compatibility.compatible ? '✅ Yes' : '❌ No');
+            console.log('   Wallet type:', compatibility.walletType);
+            console.log('   Available methods:', Object.entries(compatibility.methods)
+                .filter(([_, available]) => available)
+                .map(([method, _]) => method)
+                .join(', '));
             
             // Summary
             console.log('\n==============================');
@@ -1458,9 +1490,9 @@ class WalletWarsEscrowIntegration {
             const canUseDirect = !!(this.Transaction && this.TransactionInstruction && this.Buffer);
             
             console.log('   Can use manual encoding:', canUseDirect ? '✅ Yes' : '❌ No');
-            console.log('   Recommended method: Manual instruction building with retry logic');
+            console.log('   Recommended method: Manual instruction building with retry');
             console.log('   🎉 PROGRAM IS DEPLOYED AND READY!');
-            console.log('   🔧 FIXED: Transaction broadcast issues resolved!');
+            console.log('   🔧 USING MANUAL ENCODING WITH RETRY LOGIC!');
             console.log(`   ⏰ Test completed at: ${new Date().toISOString()}`);
             
             return { 
@@ -1476,7 +1508,7 @@ class WalletWarsEscrowIntegration {
                     pdaGeneration: true,
                     manualEncodingAvailable: canUseDirect,
                     usingManualEncoding: true,
-                    transactionSendingFixed: true
+                    walletCompatible: compatibility.compatible
                 },
                 timestamp: new Date().toISOString()
             };
@@ -1506,7 +1538,7 @@ class WalletWarsEscrowIntegration {
         
         console.log('📋 Dependency check:', deps);
         console.log(`⏰ Checked at: ${new Date().toISOString()}`);
-        console.log('🔧 Using manual encoding with retry logic for reliable transactions');
+        console.log('🔧 Using manual encoding with retry logic for reliability');
         return deps;
     }
     
@@ -1543,7 +1575,7 @@ console.log('📋 Available at: window.WalletWarsEscrowIntegration');
 console.log('🎮 Program ID:', '12j36Kp7fyzJcw29CPtoFuxg7Gy327HHTriEDUZNwv3Y');
 console.log('💰 Platform Wallet:', '5RLDuPHsa7ohaKUSNc5iYvtgveL1qrCcVdxVHXPeG3b8');
 console.log('🚀 PROGRAM DEPLOYED TO DEVNET!');
-console.log('🔧 FIXED: Transaction broadcast issues resolved with retry logic');
+console.log('🔧 FIXED: Transaction broadcast with retry logic for wallet disconnection issues');
 console.log(`⏰ Script loaded at: ${new Date().toISOString()}`);
 
 // Auto-test if Buffer is available
