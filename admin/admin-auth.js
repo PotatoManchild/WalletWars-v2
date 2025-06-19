@@ -11,6 +11,7 @@ class SupabaseAdminAuth {
         // Your authorized admin wallets
         this.authorizedWallets = [
             '6PoB9i9kpumDze7EhiL3CicAuEPxDAzrTVzHYot9sx9h'
+            'HmT6Nj3r24YKCxGLPFvf1gSJijXyNcrPHKKeknZYGRXv'
         ];
         
         // Get Supabase client - with fallback
