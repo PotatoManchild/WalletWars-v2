@@ -1,16 +1,5 @@
 // admin-control-center.js
 // WalletWars Admin Control Center JavaScript
-// FIXED: Ensure all functions are available in global scope
-
-// Immediately create functions in global scope to prevent onclick errors
-window.switchTab = function(tabName, buttonElement) {
-    // Implementation will be replaced when main code loads
-    console.log('switchTab called early, waiting for full initialization...');
-};
-
-window.toggleMobileMenu = function() {
-    console.log('toggleMobileMenu called early, waiting for full initialization...');
-};
 
 // Global state
 let currentConfig = {};
@@ -1367,30 +1356,6 @@ function updateSchedulePreview() {
     `;
 }
 
-// Now update the global references
-window.toggleMobileMenu = toggleMobileMenu;
-window.switchTab = switchTab;
-window.toggleTestMode = toggleTestMode;
-window.saveGlobalConfig = saveGlobalConfig;
-window.resetGlobalConfig = resetGlobalConfig;
-window.filterVariants = filterVariants;
-window.showAddVariantModal = showAddVariantModal;
-window.closeAddVariantModal = closeAddVariantModal;
-window.addNewVariant = addNewVariant;
-window.toggleVariant = toggleVariant;
-window.deleteVariant = deleteVariant;
-window.updateVariantCapacity = updateVariantCapacity;
-window.saveDeploymentSchedule = saveDeploymentSchedule;
-window.showDeploymentOptions = showDeploymentOptions;
-window.closeDeploymentOptions = closeDeploymentOptions;
-window.deployWithSelectedOption = deployWithSelectedOption;
-window.createTestTournament = createTestTournament;
-window.previewNextDeployment = previewNextDeployment;
-window.validateConfiguration = validateConfiguration;
-window.testEscrowConnection = testEscrowConnection;
-window.exportConfiguration = exportConfiguration;
-window.importConfiguration = importConfiguration;
-
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Admin Control Center initializing...');
@@ -1493,5 +1458,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 30000); // Every 30 seconds
 });
 
-// Log that we've finished setting up
-console.log('✅ Admin Control Center functions are now available globally');
+// Export functions to global scope for onclick handlers in HTML
+window.toggleMobileMenu = toggleMobileMenu;
+window.switchTab = switchTab;
+window.toggleTestMode = toggleTestMode;
+window.saveGlobalConfig = saveGlobalConfig;
+window.resetGlobalConfig = resetGlobalConfig;
+window.filterVariants = filterVariants;
+window.showAddVariantModal = showAddVariantModal;
+window.closeAddVariantModal = closeAddVariantModal;
+window.addNewVariant = addNewVariant;
+window.toggleVariant = toggleVariant;
+window.deleteVariant = deleteVariant;
+window.updateVariantCapacity = updateVariantCapacity;
+window.saveDeploymentSchedule = saveDeploymentSchedule;
+window.showDeploymentOptions = showDeploymentOptions;
+window.closeDeploymentOptions = closeDeploymentOptions;
+window.deployWithSelectedOption = deployWithSelectedOption;
+window.createTestTournament = createTestTournament;
+window.previewNextDeployment = previewNextDeployment;
+window.validateConfiguration = validateConfiguration;
+window.testEscrowConnection = testEscrowConnection;
+window.exportConfiguration = exportConfiguration;
+window.importConfiguration = importConfiguration;
