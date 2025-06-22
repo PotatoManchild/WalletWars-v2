@@ -24,6 +24,15 @@
     
     <!-- Shared Styles -->
     <link rel="stylesheet" href="shared.css">
+
+    <!-- Override nav spacing for 6 items -->
+<style>
+    @media (min-width: 769px) {
+        .nav-links {
+            gap: 1.5rem !important;
+        }
+    }
+</style>
     
     <style>
         /* Enhanced Leaderboard Styles with GlobalWalletManager Support */
@@ -522,6 +531,7 @@
             
             <ul class="nav-links">
                 <li><a href="index.html">Home</a></li>
+                <li><a href="how-it-works.html">How It Works</a></li>
                 <li><a href="tournaments.html">Tournaments</a></li>
                 <li><a href="leaderboards.html" class="active">Leaderboards</a></li>
                 <li><a href="hall-of-fame.html">Hall of Fame</a></li>

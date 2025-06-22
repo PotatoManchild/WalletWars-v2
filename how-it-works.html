@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How It Works - WalletWars</title>
+
+    <!-- LOAD CONFIG FIRST -->
+    <script src="config.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Supabase -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    
+    <!-- CRITICAL: Solana Web3.js - MUST LOAD FIRST -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <!-- WalletWars Scripts - ENHANCED ORDER WITH GLOBAL WALLET MANAGER -->
+    <script src="walletwars-api.js"></script>
+    <script src="wallet-service.js"></script>
+    <script src="global-wallet-manager.js"></script>
+    
+    <!-- Shared Styles -->
+    <link rel="stylesheet" href="shared.css">
+    
+    <!-- Override nav spacing for 6 items -->
+    <style>
+        @media (min-width: 769px) {
+            .nav-links {
+                gap: 1.5rem !important;
+            }
+        }
+    </style>
+    
+    <style>
+        /* How It Works Specific Styles */
+        .how-it-works-title {
+            background: linear-gradient(135deg, #8b5cf6, #ec4899, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            padding: 3rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            animation: heroGlow 10s ease-in-out infinite alternate;
+        }
+
+        @keyframes heroGlow {
+            0% { transform: rotate(0deg) scale(1); }
+            100% { transform: rotate(180deg) scale(1.1); }
+        }
+
+        .hero-subtitle {
+            font-size: 1.4rem;
+            color: #d1d5db;
+            margin-bottom: 2rem;
+            font-weight: 300;
+            opacity: 0.9;
+        }
+
+        .trust-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 2rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-top: 1rem;
+            animation: trustPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes trustPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        /* Content Section Container */
+        .content-section {
+            margin-bottom: 4rem;
+            scroll-margin-top: 100px;
+        }
+
+        .section-header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .section-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            color: white;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.2rem;
+        }
+
+        .section-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .section-description {
+            color: #9ca3af;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Tournament Tiers Section */
+        .tier-progression {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin: 3rem 0;
+            flex-wrap: wrap;
+        }
+
+        .tier-card {
+            background: rgba(31, 41, 55, 0.5);
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            flex: 1;
+            min-width: 200px;
+            max-width: 250px;
+        }
+
+        .tier-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--tier-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .tier-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--tier-color);
+            box-shadow: 0 20px 40px rgba(139, 92, 246, 0.3);
+        }
+
+        .tier-card:hover::before {
+            opacity: 1;
+        }
+
+        .tier-bronze {
+            --tier-color: #cd7f32;
+            --tier-gradient: linear-gradient(90deg, #cd7f32, #8b4513);
+        }
+
+        .tier-silver {
+            --tier-color: #c0c0c0;
+            --tier-gradient: linear-gradient(90deg, #c0c0c0, #808080);
+        }
+
+        .tier-gold {
+            --tier-color: #ffd700;
+            --tier-gradient: linear-gradient(90deg, #ffd700, #ffb347);
+        }
+
+        .tier-diamond {
+            --tier-color: #b9f2ff;
+            --tier-gradient: linear-gradient(90deg, #b9f2ff, #00bfff);
+        }
+
+        .tier-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 10px var(--tier-color));
+        }
+
+        .tier-name {
+            font-family: 'Orbitron', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--tier-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .tier-entry {
+            font-size: 1.1rem;
+            color: #10b981;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .tier-players {
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+
+        .tier-arrow {
+            font-size: 2rem;
+            color: #8b5cf6;
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes arrowPulse {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+
+        /* Tournament Schedule */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .schedule-card {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-4px);
+            border-color: #8b5cf6;
+            box-shadow: 0 15px 30px rgba(139, 92, 246, 0.2);
+        }
+
+        .schedule-card.mega {
+            background: rgba(251, 191, 36, 0.05);
+            border-color: rgba(251, 191, 36, 0.3);
+        }
+
+        .schedule-card.mega:hover {
+            border-color: #fbbf24;
+            box-shadow: 0 15px 30px rgba(251, 191, 36, 0.2);
+        }
+
+        .schedule-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .schedule-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+        }
+
+        .schedule-card.mega .schedule-title {
+            color: #fbbf24;
+        }
+
+        .schedule-timing {
+            color: #d1d5db;
+            margin-bottom: 0.5rem;
+        }
+
+        .schedule-highlight {
+            color: #10b981;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .countdown-timer {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'Orbitron', monospace;
+            font-size: 1.2rem;
+            color: #8b5cf6;
+        }
+
+        /* Prize Distribution */
+        .prize-visual {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .prize-tier-selector {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .prize-tier-btn {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #d1d5db;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .prize-tier-btn:hover,
+        .prize-tier-btn.active {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: #8b5cf6;
+            color: #8b5cf6;
+            transform: translateY(-1px);
+        }
+
+        .prize-breakdown {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .prize-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .prize-row:hover {
+            background: rgba(139, 92, 246, 0.1);
+            transform: translateX(4px);
+        }
+
+        .prize-row.top-3 {
+            background: rgba(251, 191, 36, 0.05);
+            border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+
+        .prize-position {
+            font-weight: 700;
+            color: #8b5cf6;
+            min-width: 60px;
+        }
+
+        .prize-bar {
+            flex: 1;
+            height: 24px;
+            background: rgba(139, 92, 246, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .prize-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8b5cf6, #ec4899);
+            border-radius: 12px;
+            transition: width 0.8s ease;
+        }
+
+        .prize-amount {
+            font-weight: 600;
+            color: #ffd700;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .winner-emphasis {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 0.75rem;
+        }
+
+        .winner-text {
+            font-size: 1.2rem;
+            color: #fbbf24;
+            font-weight: 700;
+        }
+
+        /* Rules Section */
+        .rules-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .rule-card {
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .rule-card:hover {
+            transform: translateY(-2px);
+            border-color: #8b5cf6;
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.2);
+        }
+
+        .rule-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .rule-title {
+            font-weight: 700;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+        }
+
+        .rule-text {
+            color: #d1d5db;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        /* Disqualification Warning */
+        .disqualification-warning {
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .disqualification-warning::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+            animation: warningPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes warningPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        .warning-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #ef4444;
+        }
+
+        .warning-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ef4444;
+            margin-bottom: 1rem;
+        }
+
+        .violation-list {
+            text-align: left;
+            max-width: 600px;
+            margin: 0 auto;
+            list-style: none;
+            padding: 0;
+        }
+
+        .violation-item {
+            color: #d1d5db;
+            margin-bottom: 0.75rem;
+            padding-left: 2rem;
+            position: relative;
+        }
+
+        .violation-item::before {
+            content: '❌';
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        /* Escrow System */
+        .escrow-flow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+            align-items: center;
+        }
+
+        .escrow-step {
+            text-align: center;
+            position: relative;
+        }
+
+        .escrow-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 1rem;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            animation: escrowFloat 3s ease-in-out infinite;
+            animation-delay: calc(var(--step) * 0.2s);
+        }
+
+        @keyframes escrowFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .escrow-step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            top: 40px;
+            right: -1rem;
+            font-size: 2rem;
+            color: #8b5cf6;
+            animation: arrowPulse 2s ease-in-out infinite;
+        }
+
+        .escrow-label {
+            font-weight: 700;
+            color: #8b5cf6;
+            margin-bottom: 0.5rem;
+        }
+
+        .escrow-desc {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        .contract-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            color: #8b5cf6;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .contract-link:hover {
+            background: rgba(139, 92, 246, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Getting Started CTA */
+        .getting-started {
+            background: rgba(139, 92, 246, 0.05);
+            border: 2px solid rgba(139, 92, 246, 0.2);
+            border-radius: 1.5rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-top: 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .getting-started::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            animation: ctaGlow 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes ctaGlow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
+        }
+
+        .getting-started-title {
+            font-family: 'Orbitron', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #8b5cf6;
+            margin-bottom: 1rem;
+        }
+
+        .getting-started-steps {
+            display: flex;
+            justify-content: center;
+            gap: 3rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .gs-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .gs-number {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .gs-text {
+            color: #d1d5db;
+            font-weight: 600;
+        }
+
+        .cta-button-large {
+            display: inline-block;
+            background: linear-gradient(135deg, #8b5cf6, #ec4899);
+            color: white;
+            padding: 1.2rem 3rem;
+            border-radius: 0.75rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 2rem;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-button-large:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.4);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .tier-progression {
+                gap: 1rem;
+            }
+
+            .tier-card {
+                min-width: 140px;
+                padding: 1.5rem 1rem;
+            }
+
+            .tier-arrow {
+                display: none;
+            }
+
+            .section-title {
+                font-size: 1.5rem;
+            }
+
+            .escrow-step::after {
+                display: none;
+            }
+
+            .getting-started-steps {
+                flex-direction: column;
+                gap: 1.5rem;
+                align-items: flex-start;
+                max-width: 300px;
+                margin: 2rem auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-background"></div>
+    <div class="geometric-patterns"></div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">WalletWars</a>
+            
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="how-it-works.html" class="active">How It Works</a></li>
+                <li><a href="tournaments.html">Tournaments</a></li>
+                <li><a href="leaderboards.html">Leaderboards</a></li>
+                <li><a href="hall-of-fame.html">Hall of Fame</a></li>
+                <li><a href="profile.html">Profile</a></li>
+                
+                <!-- Disconnected State -->
+                <li id="connectWalletBtn"><a href="#" class="btn-primary" onclick="window.connectWallet && window.connectWallet('phantom') || fallbackConnect()">Connect Wallet</a></li>
+                
+                <!-- Connected State (Hidden by default, managed by GlobalWalletManager) -->
+                <li id="championInfo" style="display: none;">
+                    <div id="navChampionAvatar">🔥</div>
+                    <span id="navChampionName">Champion</span>
+                    <button class="nav-disconnect" onclick="window.disconnectWallet && window.disconnectWallet()">Disconnect</button>
+                </li>
+            </ul>
+
+            <!-- Mobile Menu Toggle -->
+            <button class="mobile-menu-toggle" aria-label="Toggle mobile menu" aria-expanded="false">
+                <div class="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Page Container -->
+    <div class="page-container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title how-it-works-title">How WalletWars Works</h1>
+            <p class="page-subtitle">Master the tiers, dominate the leaderboards, claim your prizes</p>
+        </div>
+
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h2 class="hero-subtitle">Your Path to Trading Glory Awaits</h2>
+            <div class="trust-badge">
+                🔐 Secured by Solana Smart Contracts
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="page-content">
+            <!-- Tournament Tiers Section -->
+            <div class="content-section" id="tournament-tiers">
+                <div class="section-header">
+                    <div class="section-number">1</div>
+                    <h2 class="section-title">🎮 Tournament Tiers</h2>
+                    <p class="section-description">Progress through increasingly competitive tiers as you prove your trading prowess</p>
+                </div>
+
+                <div class="tier-progression">
+                    <div class="tier-card tier-bronze">
+                        <div class="tier-icon">🥉</div>
+                        <div class="tier-name">BRONZE</div>
+                        <div class="tier-entry">0.01 SOL</div>
+                        <div class="tier-players">50 players max</div>
+                    </div>
+
+                    <div class="tier-arrow">→</div>
+
+                    <div class="tier-card tier-silver">
+                        <div class="tier-icon">🥈</div>
+                        <div class="tier-name">SILVER</div>
+                        <div class="tier-entry">0.05 SOL</div>
+                        <div class="tier-players">75 players max</div>
+                    </div>
+
+                    <div class="tier-arrow">→</div>
+
+                    <div class="tier-card tier-gold">
+                        <div class="tier-icon">🥇</div>
+                        <div class="tier-name">GOLD</div>
+                        <div class="tier-entry">0.1 SOL</div>
+                        <div class="tier-players">100 players max</div>
+                    </div>
+
+                    <div class="tier-arrow">→</div>
+
+                    <div class="tier-card tier-diamond">
+                        <div class="tier-icon">💎</div>
+                        <div class="tier-name">DIAMOND</div>
+                        <div class="tier-entry">0.25+ SOL</div>
+                        <div class="tier-players">100 players max</div>
+                    </div>
+                </div>
+
+                <p style="text-align: center; color: #8b5cf6; font-weight: 600; margin-top: 2rem;">
+                    Find your comfort zone and compete where the stakes match your skill level!
+                </p>
+            </div>
+
+            <!-- Tournament Schedule Section -->
+            <div class="content-section" id="tournament-schedule">
+                <div class="section-header">
+                    <div class="section-number">2</div>
+                    <h2 class="section-title">📅 Tournament Schedule</h2>
+                    <p class="section-description">Never miss an opportunity to compete and win</p>
+                </div>
+
+                <div class="schedule-grid">
+                    <div class="schedule-card">
+                        <div class="schedule-icon">🎯</div>
+                        <h3 class="schedule-title">Weekly Tournaments</h3>
+                        <p class="schedule-timing">Every Monday</p>
+                        <p class="schedule-highlight">New tournaments across all tiers</p>
+                        <p style="color: #9ca3af; font-size: 0.9rem; margin-top: 1rem;">
+                            7-day competitions starting fresh each week
+                        </p>
+                    </div>
+
+                    <div class="schedule-card mega">
+                        <div class="schedule-icon">🏆</div>
+                        <h3 class="schedule-title">Monthly Mega</h3>
+                        <p class="schedule-timing">First Monday of Each Month</p>
+                        <p class="schedule-highlight">100+ winners share the prize pool!</p>
+                        <div class="countdown-timer" id="megaCountdown">
+                            Next: July 7th, 2025
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Prize Distribution Section -->
+            <div class="content-section" id="prize-distribution">
+                <div class="section-header">
+                    <div class="section-number">3</div>
+                    <h2 class="section-title">💰 Prize Distribution</h2>
+                    <p class="section-description">More winners, bigger rewards, better chances</p>
+                </div>
+
+                <div class="prize-visual">
+                    <div class="prize-tier-selector">
+                        <button class="prize-tier-btn active" onclick="showPrizeDistribution('bronze')">Bronze</button>
+                        <button class="prize-tier-btn" onclick="showPrizeDistribution('silver')">Silver</button>
+                        <button class="prize-tier-btn" onclick="showPrizeDistribution('gold')">Gold</button>
+                        <button class="prize-tier-btn" onclick="showPrizeDistribution('diamond')">Diamond</button>
+                        <button class="prize-tier-btn" onclick="showPrizeDistribution('mega')">Monthly Mega</button>
+                    </div>
+
+                    <div id="prizeBreakdown" class="prize-breakdown">
+                        <!-- Prize distribution will be populated by JavaScript -->
+                    </div>
+
+                    <div class="winner-emphasis">
+                        <p class="winner-text">🎉 Up to 100 winners in Monthly Mega tournaments!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rules & Fair Play Section -->
+            <div class="content-section" id="rules-fair-play">
+                <div class="section-header">
+                    <div class="section-number">4</div>
+                    <h2 class="section-title">📊 Rules & Fair Play</h2>
+                    <p class="section-description">Compete fairly, win honestly</p>
+                </div>
+
+                <div class="rules-grid">
+                    <div class="rule-card">
+                        <div class="rule-icon">📸</div>
+                        <h3 class="rule-title">Performance Tracking</h3>
+                        <p class="rule-text">
+                            Wallet snapshots taken at tournament start and end. Your percentage gain determines your rank.
+                        </p>
+                    </div>
+
+                    <div class="rule-card">
+                        <div class="rule-icon">🔒</div>
+                        <h3 class="rule-title">Privacy Protected</h3>
+                        <p class="rule-text">
+                            Your wallet address is never displayed publicly. Only your champion name is visible.
+                        </p>
+                    </div>
+
+                    <div class="rule-card">
+                        <div class="rule-icon">⚡</div>
+                        <h3 class="rule-title">Trading Styles</h3>
+                        <p class="rule-text">
+                            Choose between Pure Wallet (SOL only) or Open Trading (all assets) tournaments.
+                        </p>
+                    </div>
+
+                    <div class="rule-card">
+                        <div class="rule-icon">🛡️</div>
+                        <h3 class="rule-title">Anti-Cheat System</h3>
+                        <p class="rule-text">
+                            Automated monitoring ensures fair competition. Violations result in immediate disqualification.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disqualification Rules Section -->
+            <div class="content-section" id="disqualification-rules">
+                <div class="section-header">
+                    <div class="section-number">5</div>
+                    <h2 class="section-title">⚠️ Disqualification Rules</h2>
+                    <p class="section-description">Zero tolerance for cheating</p>
+                </div>
+
+                <div class="disqualification-warning">
+                    <div class="warning-icon">🚫</div>
+                    <h3 class="warning-title">#1 Rule: NO External Funding During Tournaments</h3>
+                    
+                    <ul class="violation-list">
+                        <li class="violation-item">Adding SOL or tokens from external sources</li>
+                        <li class="violation-item">Receiving airdrops or transfers during competition</li>
+                        <li class="violation-item">Using multiple wallets to manipulate results</li>
+                        <li class="violation-item">Coordinating with other players to affect rankings</li>
+                        <li class="violation-item">Exploiting bugs or vulnerabilities</li>
+                    </ul>
+
+                    <p style="color: #ef4444; font-weight: 700; margin-top: 2rem;">
+                        Violations = Immediate disqualification + account suspension
+                    </p>
+                </div>
+            </div>
+
+            <!-- Escrow System Section -->
+            <div class="content-section" id="escrow-system">
+                <div class="section-header">
+                    <div class="section-number">6</div>
+                    <h2 class="section-title">🔐 The Escrow System</h2>
+                    <p class="section-description">Trustless, transparent, automatic</p>
+                </div>
+
+                <div class="escrow-flow">
+                    <div class="escrow-step" style="--step: 0">
+                        <div class="escrow-icon">💳</div>
+                        <div class="escrow-label">Entry Fees</div>
+                        <div class="escrow-desc">Players pay to join</div>
+                    </div>
+
+                    <div class="escrow-step" style="--step: 1">
+                        <div class="escrow-icon">🔒</div>
+                        <div class="escrow-label">Smart Contract</div>
+                        <div class="escrow-desc">Funds locked securely</div>
+                    </div>
+
+                    <div class="escrow-step" style="--step: 2">
+                        <div class="escrow-icon">⚡</div>
+                        <div class="escrow-label">Tournament Runs</div>
+                        <div class="escrow-desc">Competition period</div>
+                    </div>
+
+                    <div class="escrow-step" style="--step: 3">
+                        <div class="escrow-icon">🏆</div>
+                        <div class="escrow-label">Auto-Distribution</div>
+                        <div class="escrow-desc">Winners paid instantly</div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="#" class="contract-link">
+                        🔍 Verify Escrow Contract
+                    </a>
+                </div>
+            </div>
+
+            <!-- Getting Started Section -->
+            <div class="content-section" id="getting-started">
+                <div class="section-header">
+                    <div class="section-number">7</div>
+                    <h2 class="section-title">🚀 Getting Started</h2>
+                    <p class="section-description">Your journey to trading glory begins here</p>
+                </div>
+
+                <div class="getting-started">
+                    <h3 class="getting-started-title">Ready to Compete?</h3>
+                    
+                    <div class="getting-started-steps">
+                        <div class="gs-step">
+                            <div class="gs-number">1</div>
+                            <div class="gs-text">Connect your wallet</div>
+                        </div>
+                        <div class="gs-step">
+                            <div class="gs-number">2</div>
+                            <div class="gs-text">Create your champion</div>
+                        </div>
+                        <div class="gs-step">
+                            <div class="gs-number">3</div>
+                            <div class="gs-text">Join a tournament</div>
+                        </div>
+                    </div>
+
+                    <a href="tournaments.html" class="cta-button-large">
+                        Join Your First Tournament
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // MOBILE NAVIGATION
+        // ========================================
+
+        function initializeMobileNavigation() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            if (!mobileToggle || !navLinks || !hamburger) return;
+            
+            mobileToggle.addEventListener('click', function() {
+                const isOpen = navLinks.classList.contains('active');
+                if (isOpen) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            });
+            
+            const navLinksItems = navLinks.querySelectorAll('a');
+            navLinksItems.forEach(link => {
+                link.addEventListener('click', function() {
+                    closeMobileMenu();
+                });
+            });
+            
+            document.addEventListener('click', function(event) {
+                const isClickInsideNav = navLinks.contains(event.target) || 
+                                        mobileToggle.contains(event.target);
+                if (!isClickInsideNav && navLinks.classList.contains('active')) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        function openMobileMenu() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            navLinks.classList.add('active');
+            hamburger.classList.add('active');
+            mobileToggle.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenu() {
+            const mobileToggle = document.querySelector('.mobile-menu-toggle');
+            const navLinks = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
+            
+            navLinks.classList.remove('active');
+            hamburger.classList.remove('active');
+            mobileToggle.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        function handleWindowResize() {
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // ========================================
+        // WALLET CONNECTION FALLBACK
+        // ========================================
+        
+        function fallbackConnect() {
+            alert('🔗 Wallet Connection\n\nPlease visit the home page to connect your wallet. Your connection will persist across all pages!');
+        }
+
+        // ========================================
+        // PRIZE DISTRIBUTION DISPLAY
+        // ========================================
+
+        const prizeDistributions = {
+            bronze: {
+                winners: 15,
+                total: 50,
+                distribution: [
+                    { position: '1st', percentage: 25, amount: 1.06 },
+                    { position: '2nd', percentage: 15, amount: 0.64 },
+                    { position: '3rd', percentage: 10, amount: 0.43 },
+                    { position: '4th-5th', percentage: 8, amount: 0.34 },
+                    { position: '6th-10th', percentage: 4, amount: 0.17 },
+                    { position: '11th-15th', percentage: 2, amount: 0.09 }
+                ]
+            },
+            silver: {
+                winners: 18,
+                total: 75,
+                distribution: [
+                    { position: '1st', percentage: 30, amount: 9.56 },
+                    { position: '2nd', percentage: 18, amount: 5.74 },
+                    { position: '3rd', percentage: 12, amount: 3.83 },
+                    { position: '4th-6th', percentage: 8, amount: 2.55 },
+                    { position: '7th-12th', percentage: 4, amount: 1.28 },
+                    { position: '13th-18th', percentage: 2, amount: 0.64 }
+                ]
+            },
+            gold: {
+                winners: 20,
+                total: 100,
+                distribution: [
+                    { position: '1st', percentage: 35, amount: 29.75 },
+                    { position: '2nd', percentage: 20, amount: 17.00 },
+                    { position: '3rd', percentage: 12, amount: 10.20 },
+                    { position: '4th-8th', percentage: 6, amount: 5.10 },
+                    { position: '9th-15th', percentage: 3, amount: 2.55 },
+                    { position: '16th-20th', percentage: 1.4, amount: 1.19 }
+                ]
+            },
+            diamond: {
+                winners: 15,
+                total: 100,
+                distribution: [
+                    { position: '1st', percentage: 40, amount: 85.00 },
+                    { position: '2nd', percentage: 22, amount: 46.75 },
+                    { position: '3rd', percentage: 13, amount: 27.63 },
+                    { position: '4th-7th', percentage: 7, amount: 14.88 },
+                    { position: '8th-12th', percentage: 3.5, amount: 7.44 },
+                    { position: '13th-15th', percentage: 1.5, amount: 3.19 }
+                ]
+            },
+            mega: {
+                winners: 100,
+                total: 1000,
+                distribution: [
+                    { position: '1st', percentage: 20, amount: 180.00 },
+                    { position: '2nd', percentage: 12, amount: 108.00 },
+                    { position: '3rd', percentage: 8, amount: 72.00 },
+                    { position: '4th-10th', percentage: 4, amount: 36.00 },
+                    { position: '11th-25th', percentage: 2, amount: 18.00 },
+                    { position: '26th-50th', percentage: 1, amount: 9.00 },
+                    { position: '51st-100th', percentage: 0.5, amount: 4.50 }
+                ]
+            }
+        };
+
+        function showPrizeDistribution(tier) {
+            // Update active button
+            document.querySelectorAll('.prize-tier-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Get distribution data
+            const dist = prizeDistributions[tier];
+            const breakdown = document.getElementById('prizeBreakdown');
+            
+            let html = `<p style="text-align: center; color: #10b981; font-weight: 600; margin-bottom: 1.5rem;">
+                ${dist.winners} out of ${dist.total} players win prizes (${Math.round(dist.winners / dist.total * 100)}% win rate!)
+            </p>`;
+
+            dist.distribution.forEach((prize, index) => {
+                const isTop3 = index < 3;
+                html += `
+                    <div class="prize-row ${isTop3 ? 'top-3' : ''}">
+                        <div class="prize-position">${prize.position}</div>
+                        <div class="prize-bar">
+                            <div class="prize-fill" style="width: ${prize.percentage * 2}%"></div>
+                        </div>
+                        <div class="prize-amount">${prize.amount} SOL</div>
+                    </div>
+                `;
+            });
+
+            breakdown.innerHTML = html;
+
+            // Animate the bars
+            setTimeout(() => {
+                document.querySelectorAll('.prize-fill').forEach((bar, index) => {
+                    const width = dist.distribution[index].percentage * 2;
+                    bar.style.width = width + '%';
+                });
+            }, 100);
+        }
+
+        // ========================================
+        // COUNTDOWN TIMER
+        // ========================================
+
+        function updateMegaCountdown() {
+            const now = new Date();
+            const nextMega = new Date(now.getFullYear(), now.getMonth() + 1, 7); // 7th of next month
+            
+            if (nextMega.getDate() < now.getDate()) {
+                nextMega.setMonth(nextMega.getMonth() + 1);
+            }
+
+            const days = Math.floor((nextMega - now) / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((nextMega - now) % (1000 * 60 * 60 * 24) / (1000 * 60 * 60));
+
+            document.getElementById('megaCountdown').textContent = `Next: ${days} days, ${hours} hours`;
+        }
+
+        // ========================================
+        // INITIALIZATION
+        // ========================================
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize mobile navigation
+            initializeMobileNavigation();
+            handleWindowResize();
+
+            // Show default prize distribution
+            showPrizeDistribution('bronze');
+
+            // Update countdown
+            updateMegaCountdown();
+            setInterval(updateMegaCountdown, 60000); // Update every minute
+
+            console.log('✅ How It Works page loaded!');
+        });
+
+        // Simple wallet connection for non-index pages
+        function attemptQuickConnect() {
+            if (window.globalWalletManager) {
+                // Try to connect with Phantom by default
+                window.connectWallet('phantom').then(success => {
+                    if (success) {
+                        alert('Wallet connected! Please visit the home page to complete champion setup.');
+                        window.location.href = 'index.html';
+                    }
+                }).catch(error => {
+                    alert('Failed to connect wallet. Please try from the home page.');
+                    window.location.href = 'index.html';
+                });
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+
+        // Override the connect button behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            const connectBtn = document.querySelector('#connectWalletBtn a');
+            if (connectBtn) {
+                connectBtn.onclick = function(e) {
+                    e.preventDefault();
+                    attemptQuickConnect();
+                };
+            }
+        });
+    </script>
+</body>
+</html>

@@ -109,7 +109,7 @@ body {
 
 .nav-links {
     display: flex;
-    gap: 2rem;
+    gap: 1.5rem; /* Updated from 2rem to 1.5rem */
     list-style: none;
     align-items: center;
     flex-wrap: nowrap; /* Prevent wrapping on desktop */
@@ -303,7 +303,7 @@ body {
 /* For larger screens, allow more space */
 @media (min-width: 1200px) {
     .nav-links {
-        gap: 2.5rem;
+        gap: 2rem; /* Updated from 2.5rem to 2rem */
     }
     
     .nav-links a {
