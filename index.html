@@ -29,6 +29,15 @@
     <!-- Shared Styles - NOW INCLUDES CONNECTED STATE NAVIGATION CSS -->
     <link rel="stylesheet" href="shared.css">
     
+    <!-- Override nav spacing for 6 items -->
+    <style>
+        @media (min-width: 769px) {
+            .nav-links {
+                gap: 1.5rem !important;
+            }
+        }
+    </style>
+    
     <style>
         /* Hero Section */
         .hero {
@@ -951,6 +960,7 @@
             
             <ul class="nav-links">
                 <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="how-it-works.html">How It Works</a></li>
                 <li><a href="tournaments.html">Tournaments</a></li>
                 <li><a href="leaderboards.html">Leaderboards</a></li>
                 <li><a href="hall-of-fame.html">Hall of Fame</a></li>
@@ -1015,28 +1025,35 @@
             
             <div class="learn-more-content">
                 <div class="concept-card">
-                    <div class="concept-icon">⚔️</div>
-                    <h3 class="concept-title">Skill-Based Competition</h3>
-                    <p class="concept-description">
-                        Compete based on your wallet's performance and trading skills, not luck. Your winrate determines your rank in tournaments.
-                    </p>
-                </div>
-                
-                <div class="concept-card">
                     <div class="concept-icon">🏆</div>
-                    <h3 class="concept-title">Real SOL Rewards</h3>
+                    <h3 class="concept-title">Find Your Level</h3>
                     <p class="concept-description">
-                        Win real SOL prizes in tournaments. Top performers take home the largest share of the prize pool based on their wallet performance.
+                        Progress from Bronze (0.01 SOL) through Silver, Gold, and Diamond tiers. Start small, grow your skills, and climb to higher stakes.
                     </p>
                 </div>
                 
                 <div class="concept-card">
-                    <div class="concept-icon">📊</div>
-                    <h3 class="concept-title">Performance Tracking</h3>
+                    <div class="concept-icon">📅</div>
+                    <h3 class="concept-title">Constant Competition</h3>
                     <p class="concept-description">
-                        Advanced analytics track your wallet's value changes over time, calculating your performance percentage for tournament rankings.
+                        New tournaments every week across all tiers. Plus massive Monthly Mega tournaments where 100 players share the prize pool!
                     </p>
                 </div>
+                
+                <div class="concept-card">
+                    <div class="concept-icon">🔐</div>
+                    <h3 class="concept-title">Trustless & Transparent</h3>
+                    <p class="concept-description">
+                        Entry fees locked in Solana escrow contracts. Winners determined through wallet performances tracked on-chain for the duration of the tournaments.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- New CTA Button -->
+            <div style="text-align: center; margin-top: 3rem;">
+                <a href="how-it-works.html" class="btn-hero-primary" style="background: linear-gradient(135deg, #8b5cf6, #ec4899); display: inline-flex; align-items: center; gap: 0.5rem;">
+                    🎮 See Full Tournament Guide →
+                </a>
             </div>
         </div>
     </div>
@@ -1364,244 +1381,6 @@
                     
                 } else {
                     throw new Error('GlobalWalletManager connection failed');
-                }
-                
-            } catch (error) {
-                console.error('❌ GlobalWalletManager connection failed:', error);
-                showConnectionError(error.message);
-            }
-        }
-
-        // Updated finalizeChamption function to use GlobalWalletManager
-        async function finalizeChamption() {
-            try {
-                // Validate input
-                if (!championData.name || championData.name.length < 3) {
-                    alert('Please enter a champion name (3-20 characters)');
-                    return;
-                }
-
-                // Get wallet status from GlobalWalletManager
-                const walletStatus = window.getWalletStatus();
-                
-                if (!walletStatus.isConnected || !walletStatus.walletAddress) {
-                    alert('Wallet connection required. Please try connecting again.');
-                    goToStep(1);
-                    return;
-                }
-
-                championData.wallet = walletStatus.walletAddress;
-                championData.walletType = walletStatus.walletType;
-
-                console.log(`🎯 Creating champion with GlobalWalletManager: ${championData.wallet.substring(0, 8)}...`);
-
-                goToStep(5);
-                
-                // Create champion in Supabase database
-                const result = await window.walletWarsAPI.createChampion(
-                    championData.wallet,
-                    championData.name,
-                    championData.avatar
-                );
-                
-                if (!result.success) {
-                    console.error('❌ Failed to create champion:', result.error);
-                    
-                    // Check if champion already exists
-                    if (result.error.includes('already exists')) {
-                        // Try to load existing champion
-                        const existingResult = await window.walletWarsAPI.getChampionProfile(championData.wallet);
-                        if (existingResult.success) {
-                            championData.championId = existingResult.champion.champion_id;
-                            championData.name = existingResult.champion.champion_name;
-                            championData.avatar = existingResult.champion.avatar_emoji;
-                            
-                            console.log('✅ Loaded existing champion from database with GlobalWalletManager!');
-                            // Continue to success step
-                        } else {
-                            alert('Champion already exists but could not be loaded. Please try again.');
-                            goToStep(3);
-                            return;
-                        }
-                    } else {
-                        alert('Failed to create champion: ' + result.error);
-                        goToStep(3);
-                        return;
-                    }
-                } else {
-                    // Success! Store champion ID
-                    championData.championId = result.championId;
-                    console.log('✅ Champion created successfully with GlobalWalletManager!');
-                }
-                
-                // Update GlobalWalletManager with champion data
-                window.globalWalletManager.setChampionData(
-                    championData.name,
-                    championData.avatar,
-                    championData.championId
-                );
-                
-                console.log('🎮 Champion setup complete with GlobalWalletManager integration!');
-                
-            } catch (error) {
-                console.error('❌ Champion creation error:', error);
-                alert('Failed to create champion. Please check your wallet connection and try again.');
-                goToStep(3);
-            }
-        }
-
-        // Updated completedOnboarding function to use GlobalWalletManager
-        function completedOnboarding() {
-            isConnected = true;
-            closeWalletModal();
-            
-            // The UI should already be updated by GlobalWalletManager
-            // But we'll trigger an update to ensure consistency
-            if (window.globalWalletManager) {
-                window.globalWalletManager.updateAllPagesUI();
-            }
-            
-            // Show a welcome message
-            setTimeout(() => {
-                const status = window.getWalletStatus();
-                alert(`🎉 Welcome to WalletWars, ${status.championName}!\n\nYour champion has been created and wallet connected globally. This connection will persist across all WalletWars pages!`);
-            }, 500);
-        }
-
-        // ========================================
-        // WALLET AVAILABILITY CHECKING
-        // ========================================
-
-        // Check wallet availability function
-        function checkWalletAvailability() {
-            console.log('🔍 Checking wallet availability...');
-            
-            // Check Phantom
-            if (window.solana && window.solana.isPhantom) {
-                document.getElementById('phantomStatus').textContent = '✅ Ready';
-                document.getElementById('phantomStatus').style.color = '#10b981';
-                console.log('✅ Phantom wallet detected');
-            } else if (isMobileDevice()) {
-                document.getElementById('phantomStatus').textContent = '📱 Open in App';
-                document.getElementById('phantomStatus').style.color = '#8b5cf6';
-            } else {
-                document.getElementById('phantomStatus').textContent = '⚠️ Install Extension';
-                document.getElementById('phantomStatus').style.color = '#f59e0b';
-                console.log('⚠️ Phantom wallet not found');
-            }
-
-            // Check Solflare
-            if (window.solflare && window.solflare.isSolflare) {
-                document.getElementById('solflareStatus').textContent = '✅ Ready';
-                document.getElementById('solflareStatus').style.color = '#10b981';
-                console.log('✅ Solflare wallet detected');
-            } else if (isMobileDevice()) {
-                document.getElementById('solflareStatus').textContent = '📱 Open in App';
-                document.getElementById('solflareStatus').style.color = '#8b5cf6';
-            } else {
-                document.getElementById('solflareStatus').textContent = '⚠️ Install Extension';
-                document.getElementById('solflareStatus').style.color = '#f59e0b';
-                console.log('⚠️ Solflare wallet not found');
-            }
-
-            // Check Backpack
-            if (window.backpack) {
-                document.getElementById('backpackStatus').textContent = '✅ Ready';
-                document.getElementById('backpackStatus').style.color = '#10b981';
-                console.log('✅ Backpack wallet detected');
-            } else if (isMobileDevice()) {
-                document.getElementById('backpackStatus').textContent = '📱 Open in App';
-                document.getElementById('backpackStatus').style.color = '#8b5cf6';
-            } else {
-                document.getElementById('backpackStatus').textContent = '⚠️ Install Extension';
-                document.getElementById('backpackStatus').style.color = '#f59e0b';
-                console.log('⚠️ Backpack wallet not found');
-            }
-
-            // Torus (demo mode)
-            document.getElementById('torusStatus').textContent = '🌀 Demo Mode';
-            document.getElementById('torusStatus').style.color = '#8b5cf6';
-        }
-
-        // Mobile device detection
-        function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-
-        // ========================================
-        // CHAMPION NAME VALIDATION
-        // ========================================
-
-        // Global variables for name checking
-        let nameCheckTimeout = null;
-        let lastCheckedName = '';
-        let nameCheckInProgress = false;
-
-        // Updated updateChampionPreview function with name uniqueness checking
-        function updateChampionPreview() {
-            const nameInput = document.getElementById('championName');
-            const name = nameInput.value.trim();
-            
-            // Update champion data
-            championData.name = name;
-            
-            // Update preview
-            document.getElementById('previewName').textContent = name || 'Champion Name';
-            document.getElementById('previewAvatar').textContent = championData.avatar;
-            
-            // Clear any existing timeout
-            if (nameCheckTimeout) {
-                clearTimeout(nameCheckTimeout);
-            }
-
-             // Validate name (basic checks)
-            let valid = true;
-            let errorMessage = '';
-            
-            if (name.length < 3) {
-                valid = false;
-                errorMessage = 'Name must be at least 3 characters';
-            } else if (name.length > 20) {
-                valid = false;
-                errorMessage = 'Name must be 20 characters or less';
-            }
-            
-            // Enable/disable create button
-            const createBtn = document.getElementById('createChampionBtn');
-            if (createBtn) {
-                createBtn.disabled = !valid;
-            }
-            
-            // Check name availability with debounce
-            if (valid && name !== lastCheckedName) {
-                nameCheckTimeout = setTimeout(() => {
-                    checkNameAvailability(name);
-                }, 500);
-            }
-        }
-
-        // Check if champion name is available
-        async function checkNameAvailability(name) {
-            if (nameCheckInProgress || !name || name.length < 3) return;
-            
-            nameCheckInProgress = true;
-            lastCheckedName = name;
-            
-            try {
-                console.log(`🔍 Checking availability for: ${name}`);
-                
-                // Show checking status
-                showNameStatus('checking', 'Checking availability...');
-                
-                // Check with API
-                const result = await window.walletWarsAPI.checkChampionNameAvailability(name);
-                
-                if (result.available) {
-                    showNameStatus('success', '✅ Name available!');
-                    document.getElementById('createChampionBtn').disabled = false;
-                } else {
-                    showNameStatus('error', '❌ Name already taken');
-                    document.getElementById('createChampionBtn').disabled = true;
                 }
                 
             } catch (error) {
@@ -1943,4 +1722,242 @@
         console.log('✅ WalletWars Landing Page scripts loaded!');
     </script>
 </body>
-</html>
+</html>('❌ GlobalWalletManager connection failed:', error);
+                showConnectionError(error.message);
+            }
+        }
+
+        // Updated finalizeChamption function to use GlobalWalletManager
+        async function finalizeChamption() {
+            try {
+                // Validate input
+                if (!championData.name || championData.name.length < 3) {
+                    alert('Please enter a champion name (3-20 characters)');
+                    return;
+                }
+
+                // Get wallet status from GlobalWalletManager
+                const walletStatus = window.getWalletStatus();
+                
+                if (!walletStatus.isConnected || !walletStatus.walletAddress) {
+                    alert('Wallet connection required. Please try connecting again.');
+                    goToStep(1);
+                    return;
+                }
+
+                championData.wallet = walletStatus.walletAddress;
+                championData.walletType = walletStatus.walletType;
+
+                console.log(`🎯 Creating champion with GlobalWalletManager: ${championData.wallet.substring(0, 8)}...`);
+
+                goToStep(5);
+                
+                // Create champion in Supabase database
+                const result = await window.walletWarsAPI.createChampion(
+                    championData.wallet,
+                    championData.name,
+                    championData.avatar
+                );
+                
+                if (!result.success) {
+                    console.error('❌ Failed to create champion:', result.error);
+                    
+                    // Check if champion already exists
+                    if (result.error.includes('already exists')) {
+                        // Try to load existing champion
+                        const existingResult = await window.walletWarsAPI.getChampionProfile(championData.wallet);
+                        if (existingResult.success) {
+                            championData.championId = existingResult.champion.champion_id;
+                            championData.name = existingResult.champion.champion_name;
+                            championData.avatar = existingResult.champion.avatar_emoji;
+                            
+                            console.log('✅ Loaded existing champion from database with GlobalWalletManager!');
+                            // Continue to success step
+                        } else {
+                            alert('Champion already exists but could not be loaded. Please try again.');
+                            goToStep(3);
+                            return;
+                        }
+                    } else {
+                        alert('Failed to create champion: ' + result.error);
+                        goToStep(3);
+                        return;
+                    }
+                } else {
+                    // Success! Store champion ID
+                    championData.championId = result.championId;
+                    console.log('✅ Champion created successfully with GlobalWalletManager!');
+                }
+                
+                // Update GlobalWalletManager with champion data
+                window.globalWalletManager.setChampionData(
+                    championData.name,
+                    championData.avatar,
+                    championData.championId
+                );
+                
+                console.log('🎮 Champion setup complete with GlobalWalletManager integration!');
+                
+            } catch (error) {
+                console.error('❌ Champion creation error:', error);
+                alert('Failed to create champion. Please check your wallet connection and try again.');
+                goToStep(3);
+            }
+        }
+
+        // Updated completedOnboarding function to use GlobalWalletManager
+        function completedOnboarding() {
+            isConnected = true;
+            closeWalletModal();
+            
+            // The UI should already be updated by GlobalWalletManager
+            // But we'll trigger an update to ensure consistency
+            if (window.globalWalletManager) {
+                window.globalWalletManager.updateAllPagesUI();
+            }
+            
+            // Show a welcome message
+            setTimeout(() => {
+                const status = window.getWalletStatus();
+                alert(`🎉 Welcome to WalletWars, ${status.championName}!\n\nYour champion has been created and wallet connected globally. This connection will persist across all WalletWars pages!`);
+            }, 500);
+        }
+
+        // ========================================
+        // WALLET AVAILABILITY CHECKING
+        // ========================================
+
+        // Check wallet availability function
+        function checkWalletAvailability() {
+            console.log('🔍 Checking wallet availability...');
+            
+            // Check Phantom
+            if (window.solana && window.solana.isPhantom) {
+                document.getElementById('phantomStatus').textContent = '✅ Ready';
+                document.getElementById('phantomStatus').style.color = '#10b981';
+                console.log('✅ Phantom wallet detected');
+            } else if (isMobileDevice()) {
+                document.getElementById('phantomStatus').textContent = '📱 Open in App';
+                document.getElementById('phantomStatus').style.color = '#8b5cf6';
+            } else {
+                document.getElementById('phantomStatus').textContent = '⚠️ Install Extension';
+                document.getElementById('phantomStatus').style.color = '#f59e0b';
+                console.log('⚠️ Phantom wallet not found');
+            }
+
+            // Check Solflare
+            if (window.solflare && window.solflare.isSolflare) {
+                document.getElementById('solflareStatus').textContent = '✅ Ready';
+                document.getElementById('solflareStatus').style.color = '#10b981';
+                console.log('✅ Solflare wallet detected');
+            } else if (isMobileDevice()) {
+                document.getElementById('solflareStatus').textContent = '📱 Open in App';
+                document.getElementById('solflareStatus').style.color = '#8b5cf6';
+            } else {
+                document.getElementById('solflareStatus').textContent = '⚠️ Install Extension';
+                document.getElementById('solflareStatus').style.color = '#f59e0b';
+                console.log('⚠️ Solflare wallet not found');
+            }
+
+            // Check Backpack
+            if (window.backpack) {
+                document.getElementById('backpackStatus').textContent = '✅ Ready';
+                document.getElementById('backpackStatus').style.color = '#10b981';
+                console.log('✅ Backpack wallet detected');
+            } else if (isMobileDevice()) {
+                document.getElementById('backpackStatus').textContent = '📱 Open in App';
+                document.getElementById('backpackStatus').style.color = '#8b5cf6';
+            } else {
+                document.getElementById('backpackStatus').textContent = '⚠️ Install Extension';
+                document.getElementById('backpackStatus').style.color = '#f59e0b';
+                console.log('⚠️ Backpack wallet not found');
+            }
+
+            // Torus (demo mode)
+            document.getElementById('torusStatus').textContent = '🌀 Demo Mode';
+            document.getElementById('torusStatus').style.color = '#8b5cf6';
+        }
+
+        // Mobile device detection
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // ========================================
+        // CHAMPION NAME VALIDATION
+        // ========================================
+
+        // Global variables for name checking
+        let nameCheckTimeout = null;
+        let lastCheckedName = '';
+        let nameCheckInProgress = false;
+
+        // Updated updateChampionPreview function with name uniqueness checking
+        function updateChampionPreview() {
+            const nameInput = document.getElementById('championName');
+            const name = nameInput.value.trim();
+            
+            // Update champion data
+            championData.name = name;
+            
+            // Update preview
+            document.getElementById('previewName').textContent = name || 'Champion Name';
+            document.getElementById('previewAvatar').textContent = championData.avatar;
+            
+            // Clear any existing timeout
+            if (nameCheckTimeout) {
+                clearTimeout(nameCheckTimeout);
+            }
+
+             // Validate name (basic checks)
+            let valid = true;
+            let errorMessage = '';
+            
+            if (name.length < 3) {
+                valid = false;
+                errorMessage = 'Name must be at least 3 characters';
+            } else if (name.length > 20) {
+                valid = false;
+                errorMessage = 'Name must be 20 characters or less';
+            }
+            
+            // Enable/disable create button
+            const createBtn = document.getElementById('createChampionBtn');
+            if (createBtn) {
+                createBtn.disabled = !valid;
+            }
+            
+            // Check name availability with debounce
+            if (valid && name !== lastCheckedName) {
+                nameCheckTimeout = setTimeout(() => {
+                    checkNameAvailability(name);
+                }, 500);
+            }
+        }
+
+        // Check if champion name is available
+        async function checkNameAvailability(name) {
+            if (nameCheckInProgress || !name || name.length < 3) return;
+            
+            nameCheckInProgress = true;
+            lastCheckedName = name;
+            
+            try {
+                console.log(`🔍 Checking availability for: ${name}`);
+                
+                // Show checking status
+                showNameStatus('checking', 'Checking availability...');
+                
+                // Check with API
+                const result = await window.walletWarsAPI.checkChampionNameAvailability(name);
+                
+                if (result.available) {
+                    showNameStatus('success', '✅ Name available!');
+                    document.getElementById('createChampionBtn').disabled = false;
+                } else {
+                    showNameStatus('error', '❌ Name already taken');
+                    document.getElementById('createChampionBtn').disabled = true;
+                }
+                
+            } catch (error) {
+                console.error
