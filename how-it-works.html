@@ -788,7 +788,7 @@
                         <div class="tier-icon">🥉</div>
                         <div class="tier-name">BRONZE</div>
                         <div class="tier-entry">0.01 SOL</div>
-                        <div class="tier-players">50 players max</div>
+                        <div class="tier-players">500 players max</div>
                     </div>
 
                     <div class="tier-arrow">→</div>
@@ -797,7 +797,7 @@
                         <div class="tier-icon">🥈</div>
                         <div class="tier-name">SILVER</div>
                         <div class="tier-entry">0.05 SOL</div>
-                        <div class="tier-players">75 players max</div>
+                        <div class="tier-players">300 players max</div>
                     </div>
 
                     <div class="tier-arrow">→</div>
@@ -806,7 +806,7 @@
                         <div class="tier-icon">🥇</div>
                         <div class="tier-name">GOLD</div>
                         <div class="tier-entry">0.1 SOL</div>
-                        <div class="tier-players">100 players max</div>
+                        <div class="tier-players">200 players max</div>
                     </div>
 
                     <div class="tier-arrow">→</div>
@@ -1107,39 +1107,45 @@
 
         const prizeDistributions = {
             bronze: {
-                winners: 15,
-                total: 50,
+                winners: 150,  // 30% of 500
+                total: 500,
                 distribution: [
-                    { position: '1st', percentage: 25, amount: 1.06 },
-                    { position: '2nd', percentage: 15, amount: 0.64 },
-                    { position: '3rd', percentage: 10, amount: 0.43 },
-                    { position: '4th-5th', percentage: 8, amount: 0.34 },
-                    { position: '6th-10th', percentage: 4, amount: 0.17 },
-                    { position: '11th-15th', percentage: 2, amount: 0.09 }
+                    { position: '1st', percentage: 25, amount: 10.63 },
+                    { position: '2nd', percentage: 15, amount: 6.38 },
+                    { position: '3rd', percentage: 10, amount: 4.25 },
+                    { position: '4th-5th', percentage: 8, amount: 3.40 },
+                    { position: '6th-10th', percentage: 4, amount: 1.70 },
+                    { position: '11th-25th', percentage: 2, amount: 0.85 },
+                    { position: '26th-50th', percentage: 1, amount: 0.43 },
+                    { position: '51st-100th', percentage: 0.5, amount: 0.21 },
+                    { position: '101st-150th', percentage: 0.3, amount: 0.13 }
                 ]
             },
             silver: {
-                winners: 18,
-                total: 75,
+                winners: 75,  // 25% of 300
+                total: 300,
                 distribution: [
-                    { position: '1st', percentage: 30, amount: 9.56 },
-                    { position: '2nd', percentage: 18, amount: 5.74 },
-                    { position: '3rd', percentage: 12, amount: 3.83 },
-                    { position: '4th-6th', percentage: 8, amount: 2.55 },
-                    { position: '7th-12th', percentage: 4, amount: 1.28 },
-                    { position: '13th-18th', percentage: 2, amount: 0.64 }
+                    { position: '1st', percentage: 30, amount: 38.25 },
+                    { position: '2nd', percentage: 18, amount: 22.95 },
+                    { position: '3rd', percentage: 12, amount: 15.30 },
+                    { position: '4th-6th', percentage: 8, amount: 10.20 },
+                    { position: '7th-12th', percentage: 4, amount: 5.10 },
+                    { position: '13th-25th', percentage: 2, amount: 2.55 },
+                    { position: '26th-50th', percentage: 1, amount: 1.28 },
+                    { position: '51st-75th', percentage: 0.6, amount: 0.77 }
                 ]
             },
             gold: {
-                winners: 20,
-                total: 100,
+                winners: 40,  // 20% of 200
+                total: 200,
                 distribution: [
-                    { position: '1st', percentage: 35, amount: 29.75 },
-                    { position: '2nd', percentage: 20, amount: 17.00 },
-                    { position: '3rd', percentage: 12, amount: 10.20 },
-                    { position: '4th-8th', percentage: 6, amount: 5.10 },
-                    { position: '9th-15th', percentage: 3, amount: 2.55 },
-                    { position: '16th-20th', percentage: 1.4, amount: 1.19 }
+                    { position: '1st', percentage: 35, amount: 59.50 },
+                    { position: '2nd', percentage: 20, amount: 34.00 },
+                    { position: '3rd', percentage: 12, amount: 20.40 },
+                    { position: '4th-8th', percentage: 6, amount: 10.20 },
+                    { position: '9th-15th', percentage: 3, amount: 5.10 },
+                    { position: '16th-25th', percentage: 1.4, amount: 2.38 },
+                    { position: '26th-40th', percentage: 0.8, amount: 1.36 }
                 ]
             },
             diamond: {
